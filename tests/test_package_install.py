@@ -1,8 +1,8 @@
 import importlib.util
 from pathlib import Path
+import re
 import subprocess
 import sys
-import tomllib
 
 import pytest
 
@@ -10,14 +10,30 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_package_metadata_only_includes_pricing_core():
-    with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as pyproject_file:
-        pyproject = tomllib.load(pyproject_file)
+def _toml_section(text: str, section_name: str) -> str:
+    match = re.search(
+        rf"(?ms)^\[{re.escape(section_name)}\]\s*$\n(.*?)(?=^\[|\Z)",
+        text,
+    )
+    assert match is not None, f"missing [{section_name}] section"
+    return match.group(1)
 
-    assert pyproject["project"]["name"] == "hanamans-pricing-core"
-    assert pyproject["project"]["version"] == "0.1.0"
-    assert pyproject["project"]["dependencies"] == []
-    assert pyproject["tool"]["setuptools"]["packages"] == ["pricing_core"]
+
+def _assert_toml_assignment(section: str, key: str, expected_value: str) -> None:
+    pattern = rf"(?m)^{re.escape(key)}\s*=\s*{re.escape(expected_value)}\s*$"
+    assert re.search(pattern, section) is not None, f"missing {key} = {expected_value}"
+
+
+def test_package_metadata_only_includes_pricing_core():
+    pyproject_text = (REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    project = _toml_section(pyproject_text, "project")
+    setuptools = _toml_section(pyproject_text, "tool.setuptools")
+
+    _assert_toml_assignment(project, "name", '"hanamans-pricing-core"')
+    _assert_toml_assignment(project, "version", '"0.1.0"')
+    _assert_toml_assignment(project, "requires-python", '">=3.10"')
+    _assert_toml_assignment(project, "dependencies", "[]")
+    _assert_toml_assignment(setuptools, "packages", '["pricing_core"]')
 
 
 def test_installed_package_imports_outside_repository(tmp_path):
