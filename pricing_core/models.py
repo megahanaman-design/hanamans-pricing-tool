@@ -51,3 +51,22 @@ class PricingSummary:
     refund_break_even: PricePointResult
     target_1: TargetGrossResult
     target_2: TargetGrossResult
+
+
+@dataclass(frozen=True)
+class SellingTotalResolution:
+    allowed_selling_total_usd: float
+    product_price_usd: float
+    duty_shipping_usd: float
+    selling_price_usd: float
+
+
+@dataclass(frozen=True)
+class MaxPurchaseResult:
+    allowed_selling_total_usd: float
+    product_price_usd: float
+    duty_shipping_usd: float
+    selling_price_usd: float
+    max_purchase_yen: int
+    gross_profit_at_limit: float
+    gross_profit_at_next_yen: float
