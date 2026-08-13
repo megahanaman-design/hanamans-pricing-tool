@@ -1,0 +1,24 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets / local settings
+.env
+.env.*
+*.key
+*.pem
+
+# Runtime data / generated files
+input/
+output/
+
+# Local reference workbook - review before committing
+reference_pricing_logic.xlsx.xlsx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
