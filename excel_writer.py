@@ -7,6 +7,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from calculator import Settings
+from pricing_core.shipping import shipping_table_rows
 
 
 INPUT_HEADERS = ["国内最安値円", "メモ"]
@@ -349,14 +350,7 @@ def _gui_audit_fee_formula(column: str) -> str:
 
 
 def _shipping_table_rows() -> list[list[object]]:
-    rows: list[list[object]] = []
-    rows.append([0, "～", 100, 0.18, 18])
-    lower = 100
-    while lower <= 2450:
-        upper = lower + 49
-        rows.append([lower, "～", upper, 0.18, round(upper * 0.18, 2)])
-        lower += 50
-    return rows
+    return shipping_table_rows()
 
 
 def _apply_simulator_number_formats(ws) -> None:

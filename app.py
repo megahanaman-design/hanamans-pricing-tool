@@ -4,16 +4,16 @@ import json
 import math
 import os
 import tkinter as tk
-from dataclasses import dataclass
 from pathlib import Path
 from tkinter import messagebox, ttk
 
 from openpyxl import Workbook
 
-from calculator import Settings, to_float
+from calculator import Settings
 from exchange_rate import get_usd_jpy_rate
-from excel_writer import _shipping_table_rows, write_result
+from excel_writer import write_result
 from main import load_gui_settings, load_purchase_prices
+from pricing_core import PricePointResult, PricingSummary, TargetGrossResult, calculate_summary
 
 
 APP_TITLE = "eBay Pricing Tool"
@@ -23,36 +23,6 @@ OUTPUT_DIR = BASE_DIR / "output"
 PURCHASE_INPUT = INPUT_DIR / "purchase_input.xlsx"
 GUI_SETTINGS = INPUT_DIR / "gui_settings.json"
 RESULT_FILE = OUTPUT_DIR / "pricing_result.xlsx"
-
-
-@dataclass(frozen=True)
-class PricePointResult:
-    product_price_usd: float | None
-    duty_shipping_usd: float | None
-    selling_price_usd: float | None
-
-
-@dataclass(frozen=True)
-class TargetGrossResult:
-    target_margin: float
-    product_price_usd: float | None
-    duty_shipping_usd: float | None
-    selling_price_usd: float | None
-    gross_profit_yen: float | None
-    gross_margin: float | None
-    refund_profit_yen: float | None
-    refund_margin: float | None
-
-
-@dataclass(frozen=True)
-class PricingSummary:
-    used_exchange_rate: float
-    exchange_source: str
-    domestic_min_yen: float
-    gross_break_even: PricePointResult
-    refund_break_even: PricePointResult
-    target_1: TargetGrossResult
-    target_2: TargetGrossResult
 
 
 class PricingApp(tk.Tk):
@@ -374,120 +344,6 @@ class PricingApp(tk.Tk):
             messagebox.showinfo(APP_TITLE, f"見つかりません: {path}")
             return
         os.startfile(path)
-
-
-def calculate_summary(domestic_min: float, settings: Settings, fx_info: dict) -> PricingSummary:
-    exchange_rate = _final_exchange_rate(fx_info, settings)
-    candidates = []
-    for product_price in (index + 0.99 for index in range(0, 3001)):
-        metrics = _calculate_metrics(product_price, domestic_min, settings, exchange_rate)
-        candidates.append((product_price, metrics))
-
-    gross_break_even = _first_price_point(candidates, lambda metrics: metrics["gross_profit_yen"] >= 0)
-    refund_break_even = _first_price_point(candidates, lambda metrics: metrics["refund_profit_yen"] >= 0)
-    target_1 = _target_result(candidates, settings.target_margin_1)
-    target_2 = _target_result(candidates, settings.target_margin_2)
-
-    return PricingSummary(
-        used_exchange_rate=exchange_rate,
-        exchange_source=str(fx_info.get("source", "Fallback")),
-        domestic_min_yen=domestic_min,
-        gross_break_even=gross_break_even,
-        refund_break_even=refund_break_even,
-        target_1=target_1,
-        target_2=target_2,
-    )
-
-
-def _target_result(candidates: list[tuple[float, dict[str, float]]], target_margin: float) -> TargetGrossResult:
-    for product_price, metrics in candidates:
-        if metrics["gross_margin"] >= target_margin:
-            return TargetGrossResult(
-                target_margin=target_margin,
-                product_price_usd=product_price,
-                duty_shipping_usd=metrics["duty_shipping_usd"],
-                selling_price_usd=metrics["selling_price_usd"],
-                gross_profit_yen=metrics["gross_profit_yen"],
-                gross_margin=metrics["gross_margin"],
-                refund_profit_yen=metrics["refund_profit_yen"],
-                refund_margin=metrics["refund_margin"],
-            )
-    return TargetGrossResult(
-        target_margin=target_margin,
-        product_price_usd=None,
-        duty_shipping_usd=None,
-        selling_price_usd=None,
-        gross_profit_yen=None,
-        gross_margin=None,
-        refund_profit_yen=None,
-        refund_margin=None,
-    )
-
-
-def _calculate_metrics(product_price_usd: float, purchase_yen: float, settings: Settings, exchange_rate: float) -> dict[str, float]:
-    duty_shipping_usd = _duty_shipping_usd(product_price_usd)
-    selling_price_usd = product_price_usd + duty_shipping_usd
-    sales_yen = selling_price_usd * exchange_rate
-    total_sales_yen = sales_yen * (1 + settings.sales_tax_rate)
-    ebay_fvf_yen = total_sales_yen * settings.ebay_fvf_rate + settings.ebay_fixed_fee_usd * exchange_rate
-    international_fee_yen = total_sales_yen * settings.international_fee_rate
-    ad_fee_yen = total_sales_yen * settings.ad_rate
-    payoneer_fee_yen = (sales_yen - ebay_fvf_yen - international_fee_yen - ad_fee_yen) * settings.payoneer_fee_rate
-    total_fee_yen = ebay_fvf_yen + international_fee_yen + ad_fee_yen + payoneer_fee_yen
-    shipping_yen = settings.package_shipping_yen + duty_shipping_usd * exchange_rate
-    gross_profit_yen = sales_yen - purchase_yen - total_fee_yen - shipping_yen - settings.other_cost_yen
-    gross_margin = gross_profit_yen / sales_yen if sales_yen else 0
-    refund_profit_yen = (
-        gross_profit_yen
-        + (purchase_yen * 0.0909)
-        + (sales_yen * (settings.ebay_fvf_rate + settings.international_fee_rate) * 1.1 * 0.0909)
-    )
-    refund_margin = refund_profit_yen / sales_yen if sales_yen else 0
-    return {
-        "duty_shipping_usd": duty_shipping_usd,
-        "selling_price_usd": selling_price_usd,
-        "gross_profit_yen": gross_profit_yen,
-        "gross_margin": gross_margin,
-        "refund_profit_yen": refund_profit_yen,
-        "refund_margin": refund_margin,
-    }
-
-
-def _duty_shipping_usd(product_price_usd: float) -> float:
-    if product_price_usd >= 2500:
-        return 0
-    matched = 0.0
-    for row in _shipping_table_rows():
-        if product_price_usd >= float(row[0]):
-            matched = float(row[4])
-        else:
-            break
-    return matched
-
-
-def _final_exchange_rate(fx_info: dict, settings: Settings) -> float:
-    manual_override = to_float(fx_info.get("manual_override"), None)
-    if manual_override is not None:
-        return manual_override
-    auto_rate = to_float(fx_info.get("rate"), None)
-    if auto_rate is not None:
-        return auto_rate
-    return settings.default_exchange_rate
-
-
-def _first_price_point(candidates: list[tuple[float, dict[str, float]]], predicate) -> PricePointResult:
-    for price, metrics in candidates:
-        if predicate(metrics):
-            return PricePointResult(
-                product_price_usd=price,
-                duty_shipping_usd=metrics["duty_shipping_usd"],
-                selling_price_usd=metrics["selling_price_usd"],
-            )
-    return PricePointResult(
-        product_price_usd=None,
-        duty_shipping_usd=None,
-        selling_price_usd=None,
-    )
 
 
 def _format_usd(value: float | None) -> str:
