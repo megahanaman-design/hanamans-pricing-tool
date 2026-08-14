@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hanamans-pricing-core"
+version = "0.1.0"
+description = "Core pricing calculations for Hanaman's pricing tools"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+packages = ["pricing_core"]
