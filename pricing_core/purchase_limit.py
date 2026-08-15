@@ -4,7 +4,12 @@ import math
 from decimal import Decimal, ROUND_FLOOR
 
 from .calculator import calculate_metrics
-from .models import MaxPurchaseResult, SellingTotalResolution, Settings
+from .models import (
+    MaxPurchaseResult,
+    ProductPricePurchaseLimitResult,
+    SellingTotalResolution,
+    Settings,
+)
 from .shipping import shipping_table_rows
 
 
@@ -23,6 +28,39 @@ def _decimal_amount(value: float, name: str) -> Decimal:
 
 def _floor_cents(amount: Decimal) -> Decimal:
     return amount.quantize(_CENT, rounding=ROUND_FLOOR)
+
+
+def _max_purchase_with_nonnegative_gross(
+    product_price_usd: float,
+    settings: Settings,
+    exchange_rate: float,
+) -> tuple[int, float, float]:
+    """Find and verify the greatest integer purchase price at gross break-even."""
+
+    def gross_profit(purchase_yen: int) -> float:
+        return calculate_metrics(
+            product_price_usd, purchase_yen, settings, exchange_rate
+        )["gross_profit_yen"]
+
+    if gross_profit(0) < 0:
+        raise ValueError("no non-negative purchase price can produce non-negative gross profit")
+
+    low, high = 0, 1
+    while gross_profit(high) >= 0:
+        low, high = high, high * 2
+
+    while low + 1 < high:
+        middle = (low + high) // 2
+        if gross_profit(middle) >= 0:
+            low = middle
+        else:
+            high = middle
+
+    profit_at_limit = gross_profit(low)
+    profit_at_next = gross_profit(low + 1)
+    if profit_at_limit < 0 or profit_at_next >= 0:
+        raise RuntimeError("gross-profit purchase limit failed boundary verification")
+    return low, profit_at_limit, profit_at_next
 
 
 def resolve_product_price_for_selling_total(
@@ -79,29 +117,9 @@ def max_purchase_yen_for_selling_total(
     """Return the greatest integer purchase price whose canonical gross profit is nonnegative."""
     resolved = resolve_product_price_for_selling_total(allowed_selling_total_usd)
 
-    def gross_profit(purchase_yen: int) -> float:
-        return calculate_metrics(
-            resolved.product_price_usd, purchase_yen, settings, exchange_rate
-        )["gross_profit_yen"]
-
-    if gross_profit(0) < 0:
-        raise ValueError("no non-negative purchase price can produce non-negative gross profit")
-
-    low, high = 0, 1
-    while gross_profit(high) >= 0:
-        low, high = high, high * 2
-
-    while low + 1 < high:
-        middle = (low + high) // 2
-        if gross_profit(middle) >= 0:
-            low = middle
-        else:
-            high = middle
-
-    profit_at_limit = gross_profit(low)
-    profit_at_next = gross_profit(low + 1)
-    if profit_at_limit < 0 or profit_at_next >= 0:
-        raise RuntimeError("gross-profit purchase limit failed boundary verification")
+    low, profit_at_limit, profit_at_next = _max_purchase_with_nonnegative_gross(
+        resolved.product_price_usd, settings, exchange_rate
+    )
 
     return MaxPurchaseResult(
         allowed_selling_total_usd=resolved.allowed_selling_total_usd,
@@ -109,6 +127,36 @@ def max_purchase_yen_for_selling_total(
         duty_shipping_usd=resolved.duty_shipping_usd,
         selling_price_usd=resolved.selling_price_usd,
         max_purchase_yen=low,
+        gross_profit_at_limit=profit_at_limit,
+        gross_profit_at_next_yen=profit_at_next,
+    )
+
+
+def max_purchase_yen_for_product_price(
+    product_price_usd: float,
+    settings: Settings,
+    exchange_rate: float,
+) -> ProductPricePurchaseLimitResult:
+    """Return the gross break-even purchase limit for an eBay product price.
+
+    ``product_price_usd`` excludes duty/shipping. The canonical metrics calculation
+    adds duty/shipping to obtain the shipping-included selling total.
+    """
+    product_price = _decimal_amount(product_price_usd, "product_price_usd")
+    exchange = _decimal_amount(exchange_rate, "exchange_rate")
+    if exchange == 0:
+        raise ValueError("exchange_rate must be positive")
+
+    price = float(product_price)
+    metrics = calculate_metrics(price, 0, settings, float(exchange))
+    limit, profit_at_limit, profit_at_next = _max_purchase_with_nonnegative_gross(
+        price, settings, float(exchange)
+    )
+    return ProductPricePurchaseLimitResult(
+        product_price_usd=price,
+        duty_shipping_usd=metrics["duty_shipping_usd"],
+        selling_price_usd=metrics["selling_price_usd"],
+        max_purchase_yen=limit,
         gross_profit_at_limit=profit_at_limit,
         gross_profit_at_next_yen=profit_at_next,
     )

@@ -1,5 +1,16 @@
 # Purchase-limit business assumption audit
 
+## Superseded integration assumption
+
+この監査で使用した「SKU Master の ×1.15 値を shipping-included selling TOTAL cap
+として渡す」という integration 前提は、既存 Pricing Tool GUI との照合により SKU
+Master 用途では誤りと判明した。8,858 JPY という数値分析自体は、generic な
+`max_purchase_yen_for_selling_total()` の contract 監査として引き続き有効である。
+
+SKU Master では今後、×1.15 値を送料・duty を含まない `product_price_usd` として扱い、
+`max_purchase_yen_for_product_price()` を使用する。以下は当時の前提とその計算結果を
+歴史的な監査記録として維持する。
+
 ## 1. 現在の business contract
 
 この監査は SKU Master の shipping-included `allowed_selling_total_usd` をそのまま
