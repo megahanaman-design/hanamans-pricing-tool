@@ -70,3 +70,15 @@ class MaxPurchaseResult:
     max_purchase_yen: int
     gross_profit_at_limit: float
     gross_profit_at_next_yen: float
+
+
+@dataclass(frozen=True)
+class ProductPricePurchaseLimitResult:
+    """Gross break-even purchase limit for an eBay product price."""
+
+    product_price_usd: float
+    duty_shipping_usd: float
+    selling_price_usd: float
+    max_purchase_yen: int
+    gross_profit_at_limit: float
+    gross_profit_at_next_yen: float

@@ -67,6 +67,12 @@ Excelだけで使う場合:
 * 外れ値判定
 * 市場判定
 
+Pricing Core purchase-limit API:
+
+* `max_purchase_yen_for_selling_total` は、送料・duty 込みの selling TOTAL 上限から仕入上限を求めます。
+* `max_purchase_yen_for_product_price` は、送料・duty を含まない eBay 商品価格から仕入上限を求めます。
+* SKU Master の eBay 最安 TOTAL × 1.15 値には、product-price semantic の後者を使用予定です。
+
 デフォルト設定:
 
 * 為替レート: 155

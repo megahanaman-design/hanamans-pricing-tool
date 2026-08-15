@@ -30,7 +30,7 @@ def test_package_metadata_only_includes_pricing_core():
     setuptools = _toml_section(pyproject_text, "tool.setuptools")
 
     _assert_toml_assignment(project, "name", '"hanamans-pricing-core"')
-    _assert_toml_assignment(project, "version", '"0.1.0"')
+    _assert_toml_assignment(project, "version", '"0.2.0"')
     _assert_toml_assignment(project, "requires-python", '">=3.10"')
     _assert_toml_assignment(project, "dependencies", "[]")
     _assert_toml_assignment(setuptools, "packages", '["pricing_core"]')
@@ -70,12 +70,20 @@ import sys
 
 sys.path.insert(0, sys.argv[1])
 
-from pricing_core import Settings, max_purchase_yen_for_selling_total
+from pricing_core import (
+    ProductPricePurchaseLimitResult,
+    Settings,
+    max_purchase_yen_for_product_price,
+    max_purchase_yen_for_selling_total,
+)
 
 assert distribution("hanamans-pricing-core").metadata["Name"] == "hanamans-pricing-core"
 assert Path(__import__("pricing_core").__file__).is_relative_to(Path(sys.argv[1]))
 result = max_purchase_yen_for_selling_total(117.99, Settings(), 155)
 assert result.max_purchase_yen == 8858
+product_result = max_purchase_yen_for_product_price(117.99, Settings(), 155)
+assert isinstance(product_result, ProductPricePurchaseLimitResult)
+assert product_result.max_purchase_yen > result.max_purchase_yen
 """
     subprocess.run(
         [sys.executable, "-I", "-c", smoke_test, str(install_directory)],
