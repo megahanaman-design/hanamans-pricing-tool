@@ -1,4 +1,9 @@
-from .calculator import _calculate_metrics, calculate_metrics, to_float
+from .calculator import (
+    _calculate_metrics,
+    calculate_metrics,
+    calculate_metrics_with_buyer_shipping,
+    to_float,
+)
 from .exchange import _final_exchange_rate, final_exchange_rate
 from .models import (
     MaxPurchaseResult,
@@ -26,6 +31,7 @@ __all__ = [
     "Settings",
     "TargetGrossResult",
     "calculate_metrics",
+    "calculate_metrics_with_buyer_shipping",
     "calculate_summary",
     "duty_shipping_usd",
     "final_exchange_rate",
