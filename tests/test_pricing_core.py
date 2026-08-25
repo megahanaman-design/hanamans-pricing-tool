@@ -1,6 +1,13 @@
 import pytest
 
-from pricing_core import Settings, calculate_metrics, calculate_summary, duty_shipping_usd, shipping_table_rows
+from pricing_core import (
+    Settings,
+    calculate_metrics,
+    calculate_metrics_with_buyer_shipping,
+    calculate_summary,
+    duty_shipping_usd,
+    shipping_table_rows,
+)
 
 
 @pytest.mark.parametrize(
@@ -34,6 +41,24 @@ def test_golden_metrics(price, purchase, expected):
     actual = calculate_metrics(price, purchase, Settings(), 155)
     for key, value in expected.items():
         assert actual[key] == pytest.approx(value)
+
+
+def test_fixed_buyer_shipping_uses_exact_policy_charge_for_revenue_and_cost():
+    settings = Settings(package_shipping_yen=3500)
+    actual = calculate_metrics_with_buyer_shipping(600, 117, 68480, settings, 159.32)
+
+    assert actual["duty_shipping_usd"] == 117
+    assert actual["selling_price_usd"] == 717
+    assert actual["shipping_yen"] == pytest.approx(3500 + 117 * 159.32)
+    assert actual["gross_margin"] == pytest.approx(0.01046023138141846)
+
+
+def test_fixed_buyer_shipping_rejects_negative_or_nonfinite_values():
+    settings = Settings()
+    with pytest.raises(ValueError, match="buyer_shipping_usd"):
+        calculate_metrics_with_buyer_shipping(100, -1, 10000, settings, 155)
+    with pytest.raises(ValueError, match="buyer_shipping_usd"):
+        calculate_metrics_with_buyer_shipping(100, float("inf"), 10000, settings, 155)
 
 
 def test_shipping_table_and_2500_boundary():
