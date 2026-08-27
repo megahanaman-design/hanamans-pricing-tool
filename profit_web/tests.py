@@ -2,11 +2,14 @@ from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from urllib.error import HTTPError
+from urllib.parse import unquote
+from zoneinfo import ZoneInfo
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
-from .ebay import fetch_orders_for_connection, get_valid_access_token, normalize_orders, sync_normalized
+from .ebay import ebay_timestamp, fetch_orders, fetch_orders_for_connection, get_valid_access_token, normalize_orders, sync_normalized
 from .models import EbayConnection, EbayOrderLine, MonthlyExchangeRate
 from .services import calculate_monthly_line, calculate_profit, estimate_cpass_shipping, shipping_region
+from .views import month_bounds
 
 
 class ShippingTests(SimpleTestCase):
@@ -87,6 +90,17 @@ class EbayAdapterTests(TestCase):
         self.assertEqual(lines[0]["shipping_amount"], Decimal("5.0"))
         self.assertEqual(lines[1]["shipping_amount"], Decimal("3"))
 
+    def test_ebay_timestamp_and_creationdate_filter_are_utc_timestamps(self):
+        start = datetime(2026, 8, 1, tzinfo=ZoneInfo("Asia/Tokyo"))
+        end = datetime(2026, 8, 28, 9, tzinfo=ZoneInfo("Asia/Tokyo"))
+        self.assertEqual(ebay_timestamp(start), "2026-07-31T15:00:00.000Z")
+        response = patch("profit_web.ebay.urlopen").start()
+        self.addCleanup(patch.stopall)
+        response.return_value.__enter__.return_value.read.return_value = b'{"orders": [], "total": 0}'
+        fetch_orders("secret", start, end)
+        url = unquote(response.call_args.args[0].full_url)
+        self.assertIn("creationdate:[2026-07-31T15:00:00.000Z..2026-08-28T00:00:00.000Z]", url)
+
 
 class MonthlyProfitTests(TestCase):
     def make_line(self, price, purchase, country="US", tax="0", suffix="1", cancel=""):
@@ -113,6 +127,15 @@ class MonthlyProfitTests(TestCase):
         paid.refund_status = "REVIEW"; self.assertTrue(paid.needs_review)
         paid.refund_status = ""; paid.currency = "EUR"; self.assertTrue(paid.needs_review)
 
+    def test_tokyo_month_bounds_cap_current_month_but_not_past_month(self):
+        now = datetime(2026, 8, 28, 12, 34, tzinfo=timezone.utc)
+        start, end, unused = month_bounds(datetime(2026, 8, 1).date(), now)
+        self.assertEqual(start.astimezone(timezone.utc), datetime(2026, 7, 31, 15, tzinfo=timezone.utc))
+        self.assertEqual(end, now)
+        past_start, past_end, unused = month_bounds(datetime(2026, 7, 1).date(), now)
+        self.assertEqual(past_start.astimezone(timezone.utc), datetime(2026, 6, 30, 15, tzinfo=timezone.utc))
+        self.assertEqual(past_end.astimezone(timezone.utc), datetime(2026, 7, 31, 15, tzinfo=timezone.utc))
+
     @patch("profit_web.views.get_usd_jpy_rate", return_value={"rate": 150, "source": "mock", "fetched_at": "2026-08-01 00:00:00"})
     def test_totals_exclude_missing_cancelled_and_use_weighted_margin(self, unused):
         self.make_line(100, 1000, suffix="1"); self.make_line(300, 2000, suffix="2")
@@ -136,6 +159,16 @@ class MonthlyProfitTests(TestCase):
         self.make_line(100, 1000); EbayConnection.objects.create(access_token="not-logged")
         response = self.client.post(reverse("profit_web:ebay_sync"), {"month": "2026-08"})
         self.assertEqual(response.status_code, 502)
+        self.assertEqual(EbayOrderLine.objects.count(), 1)
+
+    @patch("profit_web.views.ebay.fetch_orders_for_connection")
+    @patch("profit_web.views.timezone.now", return_value=datetime(2026, 8, 28, tzinfo=timezone.utc))
+    def test_orders_older_than_ninety_days_are_rejected_without_api_or_data_loss(self, unused, fetch):
+        self.make_line(100, 1000); EbayConnection.objects.create(access_token="token")
+        response = self.client.post(reverse("profit_web:ebay_sync"), {"month": "2026-04"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("sync_error=too_old", response.url)
+        fetch.assert_not_called()
         self.assertEqual(EbayOrderLine.objects.count(), 1)
 
 

@@ -1,7 +1,7 @@
 import base64
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as datetime_timezone
 from decimal import Decimal
 from urllib.parse import urlencode
 from urllib.error import HTTPError
@@ -14,6 +14,13 @@ from .models import EbayOrderLine
 
 SCOPE = "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly"
 API_ROOT = "https://api.ebay.com"
+
+
+def ebay_timestamp(value):
+    """Format an aware datetime as the millisecond UTC form required by getOrders."""
+    if timezone.is_naive(value):
+        raise ValueError("eBay timestamp must be timezone-aware")
+    return value.astimezone(datetime_timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:23] + "Z"
 
 
 def configuration_errors():
@@ -61,7 +68,7 @@ def fetch_orders(access_token, start, end):
     # getOrders supports creationdate filtering and pagination. No modifying endpoint exists here.
     offset, orders = 0, []
     while True:
-        query = urlencode({"filter": f"creationdate:[{start.isoformat()}..{end.isoformat()}]", "limit": 200, "offset": offset})
+        query = urlencode({"filter": f"creationdate:[{ebay_timestamp(start)}..{ebay_timestamp(end)}]", "limit": 200, "offset": offset})
         request = Request(API_ROOT + "/sell/fulfillment/v1/order?" + query, headers={"Authorization": "Bearer " + access_token, "Accept": "application/json"}, method="GET")
         with urlopen(request, timeout=30) as response:
             page = json.load(response)

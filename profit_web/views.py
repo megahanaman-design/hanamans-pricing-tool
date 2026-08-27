@@ -41,6 +41,18 @@ def _rate(month):
     return MonthlyExchangeRate.objects.create(month=month, rate=data["rate"], source=data["source"], fetched_at=timezone.make_aware(fetched))
 
 
+def month_bounds(month, now=None):
+    """Return Tokyo-month boundaries, capped at now for the current month."""
+    zone = timezone.get_current_timezone()
+    start = timezone.make_aware(datetime.combine(month, datetime.min.time()), zone)
+    next_month = (month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    end = timezone.make_aware(datetime.combine(next_month, datetime.min.time()), zone)
+    current = now or timezone.now()
+    if start <= current < end:
+        end = current
+    return start, end, next_month
+
+
 def monthly(request):
     month = _month(request.GET.get("month") or request.POST.get("month"))
     if request.method == "POST" and request.POST.get("action") == "save":
@@ -50,9 +62,7 @@ def monthly(request):
         line.save(update_fields=["purchase_total_yen"])
         return redirect(f"/monthly/?month={month:%Y-%m}")
     rate = _rate(month)
-    next_month = (month.replace(day=28) + timedelta(days=4)).replace(day=1)
-    start_at = timezone.make_aware(datetime.combine(month, datetime.min.time()))
-    end_at = timezone.make_aware(datetime.combine(next_month, datetime.min.time()))
+    start_at, end_at, next_month = month_bounds(month)
     lines = list(EbayOrderLine.objects.filter(sold_at__gte=start_at, sold_at__lt=end_at))
     totals = {key: Decimal("0") for key in ("revenue", "purchase", "fvf", "international", "ad", "cpass", "gross", "refund", "with_refund")}
     included = 0
@@ -71,7 +81,7 @@ def monthly(request):
     context = {"month": month, "previous": month - timedelta(days=1), "next": next_month, "rate": rate, "lines": lines, "totals": totals,
         "connected": EbayConnection.objects.exists(), "last_sync": EbayOrderLine.objects.aggregate(value=Max("last_synced_at"))["value"],
         "count": len(lines), "entered": sum(x.purchase_total_yen is not None for x in lines), "missing": sum(x.purchase_total_yen is None for x in lines), "included": included,
-        "config_errors": ebay.configuration_errors()}
+        "config_errors": ebay.configuration_errors(), "sync_error": request.GET.get("sync_error")}
     return render(request, "profit_web/monthly.html", context)
 
 
@@ -111,9 +121,14 @@ def ebay_sync(request):
     month = _month(request.POST.get("month")); connection = EbayConnection.objects.first()
     if not connection:
         return redirect(f"/monthly/?month={month:%Y-%m}")
-    end = (month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    now = timezone.now()
+    start, end, unused = month_bounds(month, now)
+    if start < now - timedelta(days=90):
+        return redirect(f"/monthly/?month={month:%Y-%m}&sync_error=too_old")
+    if start >= end:
+        return redirect(f"/monthly/?month={month:%Y-%m}&sync_error=future")
     try:
-        ebay.sync_normalized(list(ebay.normalize_orders(ebay.fetch_orders_for_connection(connection, month, end))))
+        ebay.sync_normalized(list(ebay.normalize_orders(ebay.fetch_orders_for_connection(connection, start, end))))
     except Exception:
         # Existing rows remain intact; transaction protects partial database updates.
         return render(request, "profit_web/ebay_error.html", {"error": "eBay同期に失敗しました。既存データは変更されていません。"}, status=502)
