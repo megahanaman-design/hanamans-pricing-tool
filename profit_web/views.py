@@ -125,7 +125,9 @@ def ebay_sync(request):
     start, end, unused = month_bounds(month, now)
     if start < now - timedelta(days=90):
         return redirect(f"/monthly/?month={month:%Y-%m}&sync_error=too_old")
-    if start >= end:
+    # A future month retains valid start/end ordering, so compare its start to now explicitly.
+    # Equality is also rejected: there is no completed time range to request at that instant.
+    if start >= now:
         return redirect(f"/monthly/?month={month:%Y-%m}&sync_error=future")
     try:
         ebay.sync_normalized(list(ebay.normalize_orders(ebay.fetch_orders_for_connection(connection, start, end))))

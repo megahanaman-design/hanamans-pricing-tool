@@ -171,6 +171,31 @@ class MonthlyProfitTests(TestCase):
         fetch.assert_not_called()
         self.assertEqual(EbayOrderLine.objects.count(), 1)
 
+    @patch("profit_web.views.ebay.fetch_orders_for_connection")
+    @patch("profit_web.views.timezone.now", return_value=datetime(2026, 8, 28, tzinfo=timezone.utc))
+    def test_future_month_is_rejected_without_api_or_data_loss(self, unused, fetch):
+        self.make_line(100, 1000); EbayConnection.objects.create(access_token="token")
+        response = self.client.post(reverse("profit_web:ebay_sync"), {"month": "2026-09"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("month=2026-09", response.url)
+        self.assertIn("sync_error=future", response.url)
+        fetch.assert_not_called()
+        self.assertEqual(EbayOrderLine.objects.count(), 1)
+
+    @patch("profit_web.views.ebay.sync_normalized")
+    @patch("profit_web.views.ebay.fetch_orders_for_connection", return_value=[])
+    @patch("profit_web.views.timezone.now", return_value=datetime(2026, 8, 28, tzinfo=timezone.utc))
+    def test_current_month_still_syncs(self, unused, fetch, sync):
+        EbayConnection.objects.create(access_token="token")
+        response = self.client.post(reverse("profit_web:ebay_sync"), {"month": "2026-08"})
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("sync_error", response.url)
+        fetch.assert_called_once()
+        start, end = fetch.call_args.args[1:]
+        self.assertLess(start, end)
+        self.assertEqual(end, datetime(2026, 8, 28, tzinfo=timezone.utc))
+        sync.assert_called_once_with([])
+
 
 class AccessTokenTests(TestCase):
     def connection(self, expires, refresh="old-refresh"):
