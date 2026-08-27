@@ -1,0 +1,21 @@
+{% extends "profit_web/base.html" %}{% block title %}簡易利益計算 | Hanamans Profit Tool{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">PHASE 1</p><h1>簡易利益計算</h1><p>CSV不要。1商品の利益をその場で計算します。</p></div><a href="{% url 'profit_web:home' %}">トップへ戻る</a></div>
+<form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
+  <button type="submit">利益を計算する</button>
+</form>
+{% if result %}<section class="results" aria-live="polite"><h2>計算結果</h2><div class="result-grid">
+  <article><span>売上円</span><strong>¥{{ result.revenue_yen|floatformat:0 }}</strong></article>
+  <article><span>手数料対象円</span><strong>¥{{ result.fee_base_yen|floatformat:0 }}</strong></article>
+  <article><span>eBay FVF円</span><strong>¥{{ result.ebay_fvf_yen|floatformat:0 }}</strong></article>
+  <article><span>海外手数料円</span><strong>¥{{ result.international_fee_yen|floatformat:0 }}</strong></article>
+  <article><span>広告費円</span><strong>¥{{ result.ad_cost_yen|floatformat:0 }}</strong></article>
+  <article><span>CPASS送料見積円</span><strong>¥{{ result.cpass_shipping_yen|floatformat:0 }}</strong></article>
+  <article class="featured"><span>粗利円</span><strong>¥{{ result.gross_profit_yen|floatformat:0 }}</strong></article>
+  <article><span>消費税還付見込み円</span><strong>¥{{ result.tax_refund_yen|floatformat:0 }}</strong></article>
+  <article class="featured"><span>還付込み利益円</span><strong>¥{{ result.profit_with_refund_yen|floatformat:0 }}</strong></article>
+  <article><span>粗利率</span><strong>{{ result.gross_margin|floatformat:2 }}%</strong></article>
+  <article class="featured accent"><span>還付込み利益率</span><strong>{{ result.margin_with_refund|floatformat:2 }}%</strong></article>
+</div></section>{% endif %}{% endblock %}
+

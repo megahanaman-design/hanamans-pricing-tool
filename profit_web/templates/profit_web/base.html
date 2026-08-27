@@ -1,0 +1,5 @@
+{% load static %}
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Hanamans Profit Tool{% endblock %}</title><link rel="stylesheet" href="{% static 'profit_web/style.css' %}"></head>
+<body><header><a href="{% url 'profit_web:home' %}">Hanamans Profit Tool</a></header><main>{% block content %}{% endblock %}</main></body></html>
+
