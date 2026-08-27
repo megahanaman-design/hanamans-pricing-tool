@@ -124,3 +124,29 @@ V1_eBay_Pricing_Tool_完成版:
 * 計算ロジックはこの版で固定
 * 今後修正する場合は、必ずバックアップを取ってから行う
 * 実売明細と突合して、手数料率・送料・Payoneer手数料率は必要に応じて見直す
+
+Web版（Phase 1 — CSVなし簡易利益計算）:
+
+既存GUIとは別に、ブラウザから1商品ずつ手入力して利益を計算できます。CSV/Excel/API連携や外部への書き込みは行いません。
+
+Windowsでの起動:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+
+Chromebook Linuxでの起動:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+
+どちらもブラウザで http://127.0.0.1:8000/ を開きます。同一LANの別端末から使う場合は、サーバーを起動したPCのIPアドレスとポート8000を指定してください。
