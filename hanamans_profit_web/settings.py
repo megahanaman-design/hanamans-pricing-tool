@@ -1,8 +1,9 @@
 from pathlib import Path
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "local-only-hanamans-profit-tool"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "local-only-hanamans-profit-tool")
 DEBUG = True
 # This is a local utility: allow a Chromebook/phone to connect using the host PC's LAN IP.
 ALLOWED_HOSTS = ["*"]

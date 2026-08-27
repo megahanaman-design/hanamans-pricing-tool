@@ -150,3 +150,14 @@ python manage.py runserver 0.0.0.0:8000
 ```
 
 どちらもブラウザで http://127.0.0.1:8000/ を開きます。同一LANの別端末から使う場合は、サーバーを起動したPCのIPアドレスとポート8000を指定してください。
+
+Web Phase 2: eBay monthly profit
+--------------------------------
+Run migrations with ``python manage.py migrate`` and open ``/monthly/``. Configure these environment variables (never commit their values):
+
+* ``EBAY_CLIENT_ID``
+* ``EBAY_CLIENT_SECRET``
+* ``EBAY_REDIRECT_URI`` (the eBay RuName/callback configured for ``/ebay/callback/``)
+* ``DJANGO_SECRET_KEY`` (recommended outside local development)
+
+The integration requests only ``sell.fulfillment.readonly`` and only calls the Fulfillment getOrders GET endpoint. It never changes listings, fulfillment, refunds, offers, or any other eBay data. Fulfillment data is commonly limited to recent orders; the UI identifies the 90-day retrieval window. Tokens are never rendered or logged. Phase 2 uses estimated Phase 1 fees; actual fees, promoted listing charges, and partial-refund accounting remain a future Finances API enhancement.

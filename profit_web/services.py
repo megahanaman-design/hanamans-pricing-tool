@@ -2,6 +2,14 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_CEILING
 
 HUNDRED = Decimal("100")
+EU_COUNTRIES = {"AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"}
+
+
+def shipping_region(country_code):
+    code = (country_code or "").upper()
+    if code in {"US", "AU", "GB"}:
+        return code
+    return "EU" if code in EU_COUNTRIES else "Other"
 
 
 @dataclass(frozen=True)
@@ -46,3 +54,18 @@ def calculate_profit(*, sale_price_usd, shipping_received_usd, country, purchase
     with_refund = gross + refund
     return ProfitResult(revenue, fee_base, fvf, international, ad_cost, cpass, gross, refund,
                         with_refund, gross / revenue * HUNDRED, with_refund / revenue * HUNDRED)
+
+
+def calculate_monthly_line(line, exchange_rate):
+    """Adapt an API line to the Phase 1 calculator, including actual sales tax."""
+    item_price = Decimal(str(line.item_price))
+    shipping = Decimal(str(line.shipping_amount))
+    sales_tax = Decimal(str(line.sales_tax))
+    subtotal = item_price + shipping
+    tax_rate = sales_tax / subtotal * HUNDRED if subtotal else Decimal("0")
+    return calculate_profit(sale_price_usd=item_price,
+        shipping_received_usd=shipping, country=shipping_region(line.destination_country),
+        purchase_price_yen=line.purchase_total_yen, domestic_shipping_yen=0,
+        exchange_rate=exchange_rate, ebay_fvf_rate=Decimal("13.25"),
+        international_fee_rate=Decimal("1.35"), ad_rate=Decimal("2"),
+        parcel_shipping_yen=Decimal("3500"), sales_tax_rate=tax_rate)
