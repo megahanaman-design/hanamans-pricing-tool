@@ -39,4 +39,14 @@ class EbayOrderLine(models.Model):
 
     @property
     def excluded(self):
-        return self.cancellation_status.lower() not in ("", "not_cancelled", "notrequested") or self.refund_status == "FULL"
+        # Fulfillment CancelStateEnum uses CANCELED; accept the legacy spelling defensively.
+        return self.cancellation_status in ("CANCELED", "CANCELLED") or self.refund_status == "FULL"
+
+    @property
+    def needs_review(self):
+        cancellation_uncertain = self.cancellation_status not in ("", "NONE_REQUESTED", "CANCELED", "CANCELLED")
+        return cancellation_uncertain or self.refund_status == "REVIEW" or self.currency.upper() != "USD"
+
+    @property
+    def eligible_for_profit(self):
+        return not self.excluded and not self.needs_review

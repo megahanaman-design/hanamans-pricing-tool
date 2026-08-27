@@ -157,7 +157,9 @@ Run migrations with ``python manage.py migrate`` and open ``/monthly/``. Configu
 
 * ``EBAY_CLIENT_ID``
 * ``EBAY_CLIENT_SECRET``
-* ``EBAY_REDIRECT_URI`` (the eBay RuName/callback configured for ``/ebay/callback/``)
+* ``EBAY_RUNAME`` (URLではなく、eBay Developer Portalで発行されたRuName)
 * ``DJANGO_SECRET_KEY`` (recommended outside local development)
 
 The integration requests only ``sell.fulfillment.readonly`` and only calls the Fulfillment getOrders GET endpoint. It never changes listings, fulfillment, refunds, offers, or any other eBay data. Fulfillment data is commonly limited to recent orders; the UI identifies the 90-day retrieval window. Tokens are never rendered or logged. Phase 2 uses estimated Phase 1 fees; actual fees, promoted listing charges, and partial-refund accounting remain a future Finances API enhancement.
+
+``redirect_uri``としてeBayへ送信する値はcallback URLではなく、``EBAY_RUNAME``です。Developer PortalでそのRuNameに設定するAuth Accepted URLはHTTPSである必要があります。したがって、``http://127.0.0.1:8000/ebay/callback/``のようなローカルHTTP URLをProductionのAccepted URLとして直接利用することはできません。公開HTTPS環境またはHTTPSトンネルの準備はこのPhaseの対象外です。

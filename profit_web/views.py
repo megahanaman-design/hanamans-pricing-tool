@@ -58,7 +58,7 @@ def monthly(request):
     included = 0
     for line in lines:
         line.result = None
-        if line.purchase_total_yen is not None and not line.excluded:
+        if line.purchase_total_yen is not None and line.eligible_for_profit:
             try:
                 result = line.result = calculate_monthly_line(line, rate.rate)
             except ValueError:
@@ -113,7 +113,7 @@ def ebay_sync(request):
         return redirect(f"/monthly/?month={month:%Y-%m}")
     end = (month.replace(day=28) + timedelta(days=4)).replace(day=1)
     try:
-        ebay.sync_normalized(list(ebay.normalize_orders(ebay.fetch_orders(connection.access_token, month, end))))
+        ebay.sync_normalized(list(ebay.normalize_orders(ebay.fetch_orders_for_connection(connection, month, end))))
     except Exception:
         # Existing rows remain intact; transaction protects partial database updates.
         return render(request, "profit_web/ebay_error.html", {"error": "eBay同期に失敗しました。既存データは変更されていません。"}, status=502)
