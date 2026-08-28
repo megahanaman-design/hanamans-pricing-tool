@@ -1,5 +1,5 @@
-{% extends "profit_web/base.html" %}{% block title %}簡易利益計算 | Hanamans Profit Tool{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">PHASE 1</p><h1>簡易利益計算</h1><p>CSV不要。1商品の利益をその場で計算します。</p></div><a href="{% url 'profit_web:home' %}">トップへ戻る</a></div>
+{% extends "profit_web/base.html" %}{% block title %}個別商品 利益計算 | Hanamans Profit Tool{% endblock %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">SINGLE ITEM</p><h1>個別商品 利益計算</h1><p>1商品の売価・仕入・送料から、その場で利益を確認できます。</p></div><a class="button secondary" href="{% url 'profit_web:monthly' %}">月次利益へ →</a></div>
 <form method="post" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
   <div class="form-grid">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
@@ -18,4 +18,3 @@
   <article><span>粗利率</span><strong>{{ result.gross_margin|floatformat:2 }}%</strong></article>
   <article class="featured accent"><span>還付込み利益率</span><strong>{{ result.margin_with_refund|floatformat:2 }}%</strong></article>
 </div></section>{% endif %}{% endblock %}
-
