@@ -20,6 +20,10 @@ def home(request):
     return render(request, "profit_web/home.html")
 
 
+def privacy(request):
+    return render(request, "profit_web/privacy.html")
+
+
 def simple_calculator(request):
     form = SimpleCalculatorForm(request.POST or None)
     result = calculate_profit(**form.cleaned_data) if request.method == "POST" and form.is_valid() else None
