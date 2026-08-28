@@ -184,3 +184,38 @@ Web版のDjango settingsがrepo rootの ``.env`` をpython-dotenvで自動的に
 The integration requests only ``sell.fulfillment.readonly`` and only calls the Fulfillment getOrders GET endpoint. It never changes listings, fulfillment, refunds, offers, or any other eBay data. Fulfillment data is commonly limited to recent orders; the UI identifies the 90-day retrieval window. Tokens are never rendered or logged. Phase 2 uses estimated Phase 1 fees; actual fees, promoted listing charges, and partial-refund accounting remain a future Finances API enhancement.
 
 ``redirect_uri``としてeBayへ送信する値はcallback URLではなく、eBay Developer Portalで作成した ``EBAY_RUNAME``（RuNameそのもの）です。そのRuNameにHTTPSのAuth Accepted URLを設定する必要があります。``http://127.0.0.1:8001/ebay/callback/`` のようなlocalhost HTTP URLをProductionのAccepted URLとして直接利用することはできません。ngrok、Cloudflare Tunnel、Vercel等の外部公開方法の導入はこのPhaseの対象外です。
+
+Web Phase 2.2: Vercel + PostgreSQL
+---------------------------------
+
+ローカルの起動方法は変わりません。``DATABASE_URL`` が未設定なら ``db.sqlite3`` を使用するため、Windowsでは引き続き ``git pull`` の後に ``start_profit_web.cmd`` を実行するだけです。Chromebookも従来どおりSQLiteを使用し、Webサーバーはポート8001です。PostgreSQLをローカルへインストールする必要はありません。
+
+Vercelでは、プロジェクトへPostgres Storage（Marketplace integrationを含む）を接続し、接続が提供する ``DATABASE_URL`` を使用します。``DATABASE_URL`` がある場合だけDjangoのPostgreSQL backendへ切り替わり、接続URLの ``sslmode`` 等もdriverへ渡されます。Vercelでは ``DATABASE_URL`` が未設定または空の場合にSQLiteへfallbackせず、設定エラーとして起動を停止します。Vercel Functionのfilesystemは永続ストレージとして使用しません。eBay connection/order、月次為替、``purchase_total_yen``、access token、refresh tokenはすべて接続先PostgreSQLのDjango modelへ保存されます。ローカルSQLiteの既存データを自動コピーする処理はなく、Vercel側は新規DBとして開始します。
+
+Vercel Project SettingsのEnvironment Variablesへ、値を表示・commitせずに次を設定してください。
+
+* ``DJANGO_SECRET_KEY``（必須。十分長いランダム値。空または未設定ならVercel起動を安全に停止します）
+* ``DATABASE_URL``（必須。通常は接続したPostgres Storageが提供します）
+* ``EBAY_CLIENT_ID``（必須）
+* ``EBAY_CLIENT_SECRET``（必須）
+* ``EBAY_RUNAME``（必須。callback URLではなくeBay発行のRuName）
+
+独自domainを使用し、Vercelが ``VERCEL_PROJECT_PRODUCTION_URL`` として提供しないhostを追加する場合だけ、任意の ``DJANGO_ALLOWED_HOSTS`` にカンマ区切りでhost名を設定します（schemeやpathは含めません）。``.env`` はupload/commitせず、Vercel Project Environment Variablesを使用してください。ProductionとPreviewで同じsecret/databaseを無条件に共有しないでください。
+
+Vercelでは ``DEBUG=False`` となり、``*.vercel.app`` とVercelが通知するdeployment/production hostのみを許可します。``X-Forwarded-Proto`` を信頼するHTTPS reverse-proxy設定により、OAuth state cookieもSecure cookieになります。static CSSはWhiteNoiseのcompressed manifest storageを使います。VercelのDjango framework detectionがrepo既存の ``hanamans_profit_web/wsgi.py`` を検出するため、``api/index.py`` のような別entrypointは追加していません。build時に ``collectstatic`` が成功することをdeployment logで確認してください。
+
+Database migrationはPreview buildから自動実行しません。これによりPreview deploymentがProduction DBを変更することを防ぎます。初回およびmodel変更時は、対象をProductionに明示した管理端末/CI jobから、Productionの ``DATABASE_URL`` と ``DJANGO_SECRET_KEY`` を一時的なprocess環境変数として渡して次を実行してください。
+
+```bash
+python manage.py migrate --noinput
+```
+
+Previewをdatabase込みで検証する場合は、Storage/Marketplace providerがDB branchingを提供していればPreviewごとのisolated branchを推奨します。そのbranchの ``DATABASE_URL`` に対してのみmigrationを実行し、Production DBへPreviewからmigrationを実行しないでください。
+
+Production接続前に、eBay Developer Portalの対象RuNameの **Auth Accepted URL** を次へ設定します。
+
+```text
+https://<production-domain>/ebay/callback/
+```
+
+このURLそのものをOAuth requestの ``redirect_uri`` へ送りません。現行実装どおり ``redirect_uri=EBAY_RUNAME`` を維持します。eBay連携は ``sell.fulfillment.readonly`` とGETによる注文取得のみで、WRITE APIは使用しません。
