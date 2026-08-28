@@ -1,7 +1,13 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Web settings only: load local credentials without changing the tkinter entry points.
+# Existing process environment variables take precedence over values in .env.
+load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "local-only-hanamans-profit-tool")
 DEBUG = True

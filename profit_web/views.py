@@ -1,4 +1,5 @@
 import secrets
+import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -81,7 +82,13 @@ def monthly(request):
     context = {"month": month, "previous": month - timedelta(days=1), "next": next_month, "rate": rate, "lines": lines, "totals": totals,
         "connected": EbayConnection.objects.exists(), "last_sync": EbayOrderLine.objects.aggregate(value=Max("last_synced_at"))["value"],
         "count": len(lines), "entered": sum(x.purchase_total_yen is not None for x in lines), "missing": sum(x.purchase_total_yen is None for x in lines), "included": included,
-        "config_errors": ebay.configuration_errors(), "sync_error": request.GET.get("sync_error")}
+        "config_errors": ebay.configuration_errors(),
+        "ebay_config_status": [
+            ("Client ID", bool(os.getenv("EBAY_CLIENT_ID"))),
+            ("Client Secret", bool(os.getenv("EBAY_CLIENT_SECRET"))),
+            ("RuName", bool(os.getenv("EBAY_RUNAME"))),
+        ],
+        "sync_error": request.GET.get("sync_error")}
     return render(request, "profit_web/monthly.html", context)
 
 

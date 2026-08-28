@@ -7,6 +7,7 @@ venv/
 # Secrets / local settings
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 
