@@ -13,7 +13,7 @@ from exchange_rate import get_usd_jpy_rate
 from . import ebay
 from .forms import SimpleCalculatorForm
 from .models import EbayConnection, EbayOrderLine, MonthlyExchangeRate
-from .services import calculate_monthly_line, calculate_profit
+from .services import calculate_monthly_line, calculate_profit, monthly_default_shipping_yen
 
 
 def home(request):
@@ -62,9 +62,11 @@ def monthly(request):
     month = _month(request.GET.get("month") or request.POST.get("month"))
     if request.method == "POST" and request.POST.get("action") == "save":
         line = EbayOrderLine.objects.get(pk=request.POST["line_id"])
-        value = request.POST.get("purchase_total_yen", "").strip()
-        line.purchase_total_yen = Decimal(value) if value else None
-        line.save(update_fields=["purchase_total_yen"])
+        purchase_value = request.POST.get("purchase_total_yen", "").strip()
+        shipping_value = request.POST.get("shipping_override_yen", "").strip()
+        line.purchase_total_yen = Decimal(purchase_value) if purchase_value else None
+        line.shipping_override_yen = Decimal(shipping_value) if shipping_value else None
+        line.save(update_fields=["purchase_total_yen", "shipping_override_yen"])
         return redirect(f"/monthly/?month={month:%Y-%m}")
     rate = _rate(month)
     start_at, end_at, next_month = month_bounds(month)
@@ -72,6 +74,9 @@ def monthly(request):
     totals = {key: Decimal("0") for key in ("revenue", "purchase", "fvf", "international", "ad", "cpass", "gross", "refund", "with_refund")}
     included = 0
     for line in lines:
+        line.default_shipping_yen = monthly_default_shipping_yen(line.item_price, rate.rate, line.destination_country)
+        line.shipping_input_yen = line.shipping_override_yen if line.shipping_override_yen is not None else line.default_shipping_yen
+        line.shipping_is_manual = line.shipping_override_yen is not None
         line.result = None
         if line.purchase_total_yen is not None and line.eligible_for_profit:
             try:
