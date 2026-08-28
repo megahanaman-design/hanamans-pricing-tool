@@ -1,0 +1,19 @@
+{% extends "profit_web/base.html" %}{% block title %}Privacy Policy | Hanamans{% endblock %}{% block content %}
+<section class="hero"><p class="eyebrow">PRIVACY POLICY</p><h1>Privacy Policy</h1><p>Last updated: 2026-08-29</p></section>
+<section class="product-list">
+  <h2>About this application</h2>
+  <p>Hanamans Profit Tool is a private internal tool used by its operator to review eBay order information and calculate sales profitability.</p>
+  <h2>Information accessed from eBay</h2>
+  <p>After the operator grants permission through eBay OAuth, the application accesses order and fulfillment information needed for monthly profit calculation. The eBay API integration is read-only and does not create, edit, or end eBay listings or orders.</p>
+  <h2>Information stored</h2>
+  <p>The application may store order identifiers, line-item identifiers, item titles, quantities, sale dates, prices, shipping and tax amounts, currency, destination country, order/refund status, operator-entered purchase cost, and OAuth credentials required to maintain the authorized connection.</p>
+  <h2>Use and sharing</h2>
+  <p>The information is used only to operate this profit-calculation tool. It is not sold, rented, or shared with advertisers or unrelated third parties.</p>
+  <h2>Security and retention</h2>
+  <p>Credentials and application data are stored using the hosting and database services configured for this application. Data is retained only for the operation and maintenance of the tool and may be removed when it is no longer needed.</p>
+  <h2>Marketplace account deletion notifications</h2>
+  <p>The application provides an endpoint for eBay Marketplace Account Deletion notifications. Notification payloads and buyer identifiers received through that endpoint are not persisted by this application.</p>
+  <h2>Changes</h2>
+  <p>This policy may be updated when the application's data handling or eBay integration changes.</p>
+</section>
+{% endblock %}
