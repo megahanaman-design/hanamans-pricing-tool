@@ -31,6 +31,7 @@ class EbayOrderLine(models.Model):
     cancellation_status = models.CharField(max_length=80, blank=True)
     refund_status = models.CharField(max_length=40, blank=True)
     purchase_total_yen = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
+    shipping_override_yen = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
     last_synced_at = models.DateTimeField()
 
     class Meta:

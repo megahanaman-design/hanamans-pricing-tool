@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_CEILING
 
 HUNDRED = Decimal("100")
+LOW_PRICE_MAX_USD = Decimal("300")
 EU_COUNTRIES = {"AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"}
 
 
@@ -36,10 +37,26 @@ def estimate_cpass_shipping(sale_price_usd, exchange_rate, parcel_shipping_yen, 
     return {"AU": Decimal("4500"), "GB": Decimal("3500"), "EU": Decimal("3500")}.get(country, Decimal("3500"))
 
 
+def monthly_default_shipping_yen(sale_price_usd, exchange_rate, country_code):
+    """Return the monthly tool's editable default shipping cost.
+
+    Items at or below $300 use a 2,500 yen parcel base regardless of destination.
+    US orders keep the existing DDP duty buffer on top of that base. Higher-priced
+    orders retain the existing regional defaults.
+    """
+    sale_price_usd = Decimal(str(sale_price_usd))
+    region = shipping_region(country_code)
+    parcel_base = Decimal("2500") if sale_price_usd <= LOW_PRICE_MAX_USD else Decimal("3500")
+    if sale_price_usd <= LOW_PRICE_MAX_USD and region != "US":
+        return parcel_base
+    return estimate_cpass_shipping(sale_price_usd, exchange_rate, parcel_base, region)
+
+
 def calculate_profit(*, sale_price_usd, shipping_received_usd, country, purchase_price_yen,
                      domestic_shipping_yen, exchange_rate, ebay_fvf_rate,
-                     international_fee_rate, ad_rate, parcel_shipping_yen, sales_tax_rate):
-    values = {name: Decimal(str(value)) for name, value in locals().items() if name != "country"}
+                     international_fee_rate, ad_rate, parcel_shipping_yen, sales_tax_rate,
+                     shipping_cost_yen=None):
+    values = {name: Decimal(str(value)) for name, value in locals().items() if name not in ("country", "shipping_cost_yen")}
     total_usd = values["sale_price_usd"] + values["shipping_received_usd"]
     revenue = total_usd * values["exchange_rate"]
     if revenue <= 0:
@@ -48,7 +65,10 @@ def calculate_profit(*, sale_price_usd, shipping_received_usd, country, purchase
     fvf = fee_base * values["ebay_fvf_rate"] / HUNDRED
     international = fee_base * values["international_fee_rate"] / HUNDRED
     ad_cost = revenue * values["ad_rate"] / HUNDRED
-    cpass = estimate_cpass_shipping(values["sale_price_usd"], values["exchange_rate"], values["parcel_shipping_yen"], country)
+    if shipping_cost_yen is None:
+        cpass = estimate_cpass_shipping(values["sale_price_usd"], values["exchange_rate"], values["parcel_shipping_yen"], country)
+    else:
+        cpass = Decimal(str(shipping_cost_yen))
     gross = revenue - values["purchase_price_yen"] - values["domestic_shipping_yen"] - fvf - international - ad_cost - cpass
     refund = values["purchase_price_yen"] * Decimal("10") / Decimal("110")
     with_refund = gross + refund
@@ -63,9 +83,12 @@ def calculate_monthly_line(line, exchange_rate):
     sales_tax = Decimal(str(line.sales_tax))
     subtotal = item_price + shipping
     tax_rate = sales_tax / subtotal * HUNDRED if subtotal else Decimal("0")
+    default_shipping = monthly_default_shipping_yen(item_price, exchange_rate, line.destination_country)
+    shipping_cost = line.shipping_override_yen if line.shipping_override_yen is not None else default_shipping
     return calculate_profit(sale_price_usd=item_price,
         shipping_received_usd=shipping, country=shipping_region(line.destination_country),
         purchase_price_yen=line.purchase_total_yen, domestic_shipping_yen=0,
         exchange_rate=exchange_rate, ebay_fvf_rate=Decimal("13.25"),
         international_fee_rate=Decimal("1.35"), ad_rate=Decimal("2"),
-        parcel_shipping_yen=Decimal("3500"), sales_tax_rate=tax_rate)
+        parcel_shipping_yen=Decimal("3500"), sales_tax_rate=tax_rate,
+        shipping_cost_yen=shipping_cost)
