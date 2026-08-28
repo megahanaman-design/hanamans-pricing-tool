@@ -149,7 +149,11 @@ class MonthlyProfitTests(TestCase):
 
     @patch("profit_web.views.get_usd_jpy_rate", return_value={"rate": 150, "source": "mock", "fetched_at": "2026-08-01 00:00:00"})
     def test_monthly_renders_disconnected(self, unused):
-        self.assertContains(self.client.get(reverse("profit_web:monthly") + "?month=2026-08"), "eBayが未接続です")
+        response = self.client.get(reverse("profit_web:monthly") + "?month=2026-08")
+        self.assertContains(response, "eBayが未接続です")
+        self.assertContains(response, "Client ID: 未設定")
+        self.assertContains(response, "Client Secret: 未設定")
+        self.assertContains(response, "RuName: 未設定")
 
     def test_oauth_callback_rejects_invalid_state(self):
         self.assertEqual(self.client.get(reverse("profit_web:ebay_callback"), {"state": "bad"}).status_code, 400)

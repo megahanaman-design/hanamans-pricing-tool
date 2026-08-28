@@ -1,9 +1,23 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "local-only-hanamans-profit-tool")
+# Web settings only: load local credentials without changing the tkinter entry points.
+# Existing process environment variables take precedence over values in .env.
+load_dotenv(BASE_DIR / ".env")
+
+LOCAL_SECRET_KEY = "local-only-hanamans-profit-tool"
+
+
+def _secret_key_from_environment():
+    """Use the local key when DJANGO_SECRET_KEY is absent or blank."""
+    return os.getenv("DJANGO_SECRET_KEY") or LOCAL_SECRET_KEY
+
+
+SECRET_KEY = _secret_key_from_environment()
 DEBUG = True
 # This is a local utility: allow a Chromebook/phone to connect using the host PC's LAN IP.
 ALLOWED_HOSTS = ["*"]

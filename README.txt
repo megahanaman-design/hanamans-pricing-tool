@@ -1,6 +1,26 @@
 eBay Pricing Tool
 V1.4 fee, duty, and FX audit simulator
 
+Web版 最短起動 Windows
+-----------------------
+
+更新後は、repoのフォルダーで次の2操作だけで起動できます。
+
+```bat
+git pull
+start_profit_web.cmd
+```
+
+起動用cmdは、初回だけ ``.venv`` を作成し、必要packageをインストールします。その後、migrationとDjango system checkを実行して、Web版を ``0.0.0.0:8001`` で起動します。``activate`` は不要です。requirements.txtが変わった場合やDjango/python-dotenvをimportできない場合にはpackageを再インストールします。
+
+初回に ``.env`` がなければ ``.env.example`` から自動作成されます。eBay連携を使う場合のみ、作成された ``.env`` を開き、次の3項目を設定してください。未設定でも ``/simple/`` と ``/monthly/`` の画面および利益計算は使用できます。
+
+* ``EBAY_CLIENT_ID``
+* ``EBAY_CLIENT_SECRET``
+* ``EBAY_RUNAME``
+
+PCでは http://127.0.0.1:8001/ 、月次利益は http://127.0.0.1:8001/monthly/ を開きます。同一LANのスマホやChromebookからは ``http://<PCのIP>:8001/`` を開いてください。SKU Masterはポート8000、Pricing Tool Webはポート8001を使うため、同時に起動できます。
+
 このツールは、国内価格からeBay商品価格USD、利益額、利益率、損益分岐を確認する価格シミュレーターです。
 Pokemon PSA Research Toolとは別物です。カード名、URL、在庫管理、eBay検索結果解析は扱いません。
 
@@ -129,14 +149,13 @@ Web版（Phase 1 — CSVなし簡易利益計算）:
 
 既存GUIとは別に、ブラウザから1商品ずつ手入力して利益を計算できます。CSV/Excel/API連携や外部への書き込みは行いません。
 
-Windowsでの起動:
+Windowsでの手動起動（通常は上記の ``start_profit_web.cmd`` を使用）:
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py runserver 0.0.0.0:8001
 ```
 
 Chromebook Linuxでの起動:
@@ -146,10 +165,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver 0.0.0.0:8001
 ```
 
-どちらもブラウザで http://127.0.0.1:8000/ を開きます。同一LANの別端末から使う場合は、サーバーを起動したPCのIPアドレスとポート8000を指定してください。
+どちらもブラウザで http://127.0.0.1:8001/ を開きます。同一LANの別端末から使う場合は、サーバーを起動したPCのIPアドレスとポート8001を指定してください。ポート8000のSKU Masterとは独立しており、同時起動できます。
 
 Web Phase 2: eBay monthly profit
 --------------------------------
@@ -158,8 +177,10 @@ Run migrations with ``python manage.py migrate`` and open ``/monthly/``. Configu
 * ``EBAY_CLIENT_ID``
 * ``EBAY_CLIENT_SECRET``
 * ``EBAY_RUNAME`` (URLではなく、eBay Developer Portalで発行されたRuName)
-* ``DJANGO_SECRET_KEY`` (recommended outside local development)
+* ``DJANGO_SECRET_KEY`` (ローカル用fallbackはありますが、任意の十分長いランダム文字列を設定することを推奨)
+
+Web版のDjango settingsがrepo rootの ``.env`` をpython-dotenvで自動的に読み込みます。OS側ですでに設定された環境変数は ``.env`` より優先されます。``.env`` はGit管理対象外です。秘密値、token、authorization codeをGitへcommitしたり、ログへ貼り付けたりしないでください。
 
 The integration requests only ``sell.fulfillment.readonly`` and only calls the Fulfillment getOrders GET endpoint. It never changes listings, fulfillment, refunds, offers, or any other eBay data. Fulfillment data is commonly limited to recent orders; the UI identifies the 90-day retrieval window. Tokens are never rendered or logged. Phase 2 uses estimated Phase 1 fees; actual fees, promoted listing charges, and partial-refund accounting remain a future Finances API enhancement.
 
-``redirect_uri``としてeBayへ送信する値はcallback URLではなく、``EBAY_RUNAME``です。Developer PortalでそのRuNameに設定するAuth Accepted URLはHTTPSである必要があります。したがって、``http://127.0.0.1:8000/ebay/callback/``のようなローカルHTTP URLをProductionのAccepted URLとして直接利用することはできません。公開HTTPS環境またはHTTPSトンネルの準備はこのPhaseの対象外です。
+``redirect_uri``としてeBayへ送信する値はcallback URLではなく、eBay Developer Portalで作成した ``EBAY_RUNAME``（RuNameそのもの）です。そのRuNameにHTTPSのAuth Accepted URLを設定する必要があります。``http://127.0.0.1:8001/ebay/callback/`` のようなlocalhost HTTP URLをProductionのAccepted URLとして直接利用することはできません。ngrok、Cloudflare Tunnel、Vercel等の外部公開方法の導入はこのPhaseの対象外です。
