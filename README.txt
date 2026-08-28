@@ -190,7 +190,7 @@ Web Phase 2.2: Vercel + PostgreSQL
 
 ローカルの起動方法は変わりません。``DATABASE_URL`` が未設定なら ``db.sqlite3`` を使用するため、Windowsでは引き続き ``git pull`` の後に ``start_profit_web.cmd`` を実行するだけです。Chromebookも従来どおりSQLiteを使用し、Webサーバーはポート8001です。PostgreSQLをローカルへインストールする必要はありません。
 
-Vercelでは、プロジェクトへPostgres Storage（Marketplace integrationを含む）を接続し、接続が提供する ``DATABASE_URL`` を使用します。``DATABASE_URL`` がある場合だけDjangoのPostgreSQL backendへ切り替わり、接続URLの ``sslmode`` 等もdriverへ渡されます。Vercel Functionのfilesystemは永続ストレージとして使用しません。eBay connection/order、月次為替、``purchase_total_yen``、access token、refresh tokenはすべて接続先PostgreSQLのDjango modelへ保存されます。ローカルSQLiteの既存データを自動コピーする処理はなく、Vercel側は新規DBとして開始します。
+Vercelでは、プロジェクトへPostgres Storage（Marketplace integrationを含む）を接続し、接続が提供する ``DATABASE_URL`` を使用します。``DATABASE_URL`` がある場合だけDjangoのPostgreSQL backendへ切り替わり、接続URLの ``sslmode`` 等もdriverへ渡されます。Vercelでは ``DATABASE_URL`` が未設定または空の場合にSQLiteへfallbackせず、設定エラーとして起動を停止します。Vercel Functionのfilesystemは永続ストレージとして使用しません。eBay connection/order、月次為替、``purchase_total_yen``、access token、refresh tokenはすべて接続先PostgreSQLのDjango modelへ保存されます。ローカルSQLiteの既存データを自動コピーする処理はなく、Vercel側は新規DBとして開始します。
 
 Vercel Project SettingsのEnvironment Variablesへ、値を表示・commitせずに次を設定してください。
 

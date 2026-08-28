@@ -33,10 +33,16 @@ def _secret_key_from_environment(is_vercel=None):
     return LOCAL_SECRET_KEY
 
 
-def _database_from_environment(database_url=None):
-    """Build a Django database config without discarding URL query options."""
+def _database_from_environment(database_url=None, is_vercel=None):
+    """Build a database config, allowing SQLite only outside Vercel."""
+    if is_vercel is None:
+        is_vercel = _is_vercel_environment()
     database_url = database_url if database_url is not None else os.getenv("DATABASE_URL")
     if not database_url:
+        if is_vercel:
+            raise ImproperlyConfigured(
+                "DATABASE_URL must be set to a PostgreSQL connection URL on Vercel."
+            )
         return {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
 
     parsed = urlsplit(database_url)
