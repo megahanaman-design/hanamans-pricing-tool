@@ -12,7 +12,7 @@
     <fieldset><legend>詳細設定</legend>
       {% for field in form %}{% if forloop.counter > 5 %}<div class="compact-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endif %}{% endfor %}
     </fieldset>
-    <div class="calculator-actions"><button type="submit">計算する</button><button type="button" class="secondary" id="clear-inputs">入力をクリア</button><a class="button secondary" href="{% url 'profit_web:monthly' %}">月次利益を開く</a></div>
+    <div class="calculator-actions"><button type="submit">計算する</button><button type="button" class="secondary" id="clear-inputs">入力をクリア</button></div>
   </aside>
   <section class="output-pane" aria-live="polite">
     <h2>計算結果</h2>
