@@ -26,6 +26,10 @@ class SimpleCalculatorViewTests(TestCase):
         self.assertIsNotNone(response.context["result"])
         self.assertContains(response, "5.00%")
         self.assertContains(response, "10.00%")
+        result = response.context["result"]
+        import math
+        self.assertContains(response, f"${math.ceil(result.gross_break_even.product_price_usd)}")
+        self.assertNotContains(response, f"${result.gross_break_even.product_price_usd:.2f}")
 
     def test_clear_button_defines_required_defaults(self):
         response = self.client.get(reverse("profit_web:home"))
