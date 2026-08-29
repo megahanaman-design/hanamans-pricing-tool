@@ -18,20 +18,20 @@
     <h2>計算結果</h2>
     <div class="pricing-results">
       <article class="result-panel"><h3>粗利ベース損益分岐</h3><dl>
-        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.product_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.duty_shipping_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.selling_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
       </dl></article>
       <article class="result-panel"><h3>還付込み損益分岐</h3><dl>
-        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.product_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.duty_shipping_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.selling_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
       </dl></article>
       {% with target=result.target_1 %}<article class="result-panel target"><h3>目標粗利率1の結果</h3><dl>
         <div><dt>目標粗利率</dt><dd class="result-value">{% if result %}{{ target.target_margin|percent }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
         <div><dt>粗利益円</dt><dd class="result-value">{% if result %}¥{{ target.gross_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
         <div><dt>粗利率</dt><dd class="result-value">{% if result %}{{ target.gross_margin|percent }}{% else %}-{% endif %}</dd></div>
         <div><dt>還付込み利益額円</dt><dd class="result-value">{% if result %}¥{{ target.refund_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
@@ -39,9 +39,9 @@
       </dl></article>{% endwith %}
       {% with target=result.target_2 %}<article class="result-panel target"><h3>目標粗利率2の結果</h3><dl>
         <div><dt>目標粗利率</dt><dd class="result-value">{% if result %}{{ target.target_margin|percent }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
-        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|ceil_usd }}{% else %}-{% endif %}</dd></div>
         <div><dt>粗利益円</dt><dd class="result-value">{% if result %}¥{{ target.gross_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
         <div><dt>粗利率</dt><dd class="result-value">{% if result %}{{ target.gross_margin|percent }}{% else %}-{% endif %}</dd></div>
         <div><dt>還付込み利益額円</dt><dd class="result-value">{% if result %}¥{{ target.refund_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
