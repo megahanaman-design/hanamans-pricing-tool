@@ -1,20 +1,62 @@
-{% extends "profit_web/base.html" %}{% block title %}個別商品 利益計算 | Hanamans Profit Tool{% endblock %}{% block content %}
-<div class="page-heading"><div><p class="eyebrow">SINGLE ITEM</p><h1>個別商品 利益計算</h1><p>1商品の売価・仕入・送料から、その場で利益を確認できます。</p></div><a class="button secondary" href="{% url 'profit_web:monthly' %}">月次利益へ →</a></div>
-<form method="post" novalidate>{% csrf_token %}
-  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
-  <div class="form-grid">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
-  <button type="submit">利益を計算する</button>
+{% extends "profit_web/base.html" %}{% load profit_format %}{% block title %}個別商品 利益計算 | Hanamans Profit Tool{% endblock %}{% block content %}
+<div class="single-heading">
+  <div><p class="eyebrow">EBAY PRICING TOOL</p><h1>個別商品 利益計算</h1><p>国内価格から損益分岐と2つの目標粗利率を比較します。</p></div>
+  <a class="button secondary" href="{% url 'profit_web:monthly' %}">月次利益を開く</a>
+</div>
+<form method="post" id="pricing-form" class="pricing-workspace" novalidate>{% csrf_token %}
+  <aside class="input-pane">
+    {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset><legend>基本入力</legend>
+      {% for field in form %}{% if forloop.counter <= 5 %}<div class="compact-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endif %}{% endfor %}
+    </fieldset>
+    <fieldset><legend>詳細設定</legend>
+      {% for field in form %}{% if forloop.counter > 5 %}<div class="compact-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}</div>{% endif %}{% endfor %}
+    </fieldset>
+    <div class="calculator-actions"><button type="submit">計算する</button><button type="button" class="secondary" id="clear-inputs">入力をクリア</button><a class="button secondary" href="{% url 'profit_web:monthly' %}">月次利益を開く</a></div>
+  </aside>
+  <section class="output-pane" aria-live="polite">
+    <h2>計算結果</h2>
+    <div class="pricing-results">
+      <article class="result-panel"><h3>粗利ベース損益分岐</h3><dl>
+        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.gross_break_even.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+      </dl></article>
+      <article class="result-panel"><h3>還付込み損益分岐</h3><dl>
+        <div><dt>商品価格USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ result.refund_break_even.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+      </dl></article>
+      {% with target=result.target_1 %}<article class="result-panel target"><h3>目標粗利率1の結果</h3><dl>
+        <div><dt>目標粗利率</dt><dd class="result-value">{% if result %}{{ target.target_margin|percent }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>粗利益円</dt><dd class="result-value">{% if result %}¥{{ target.gross_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>粗利率</dt><dd class="result-value">{% if result %}{{ target.gross_margin|percent }}{% else %}-{% endif %}</dd></div>
+        <div><dt>還付込み利益額円</dt><dd class="result-value">{% if result %}¥{{ target.refund_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>還付込み利益率</dt><dd class="result-value">{% if result %}{{ target.refund_margin|percent }}{% else %}-{% endif %}</dd></div>
+      </dl></article>{% endwith %}
+      {% with target=result.target_2 %}<article class="result-panel target"><h3>目標粗利率2の結果</h3><dl>
+        <div><dt>目標粗利率</dt><dd class="result-value">{% if result %}{{ target.target_margin|percent }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格USD</dt><dd class="result-value emphasis">{% if result %}${{ target.product_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>送料USD</dt><dd class="result-value">{% if result %}${{ target.duty_shipping_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>商品価格＋送料USD</dt><dd class="result-value">{% if result %}${{ target.selling_price_usd|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>粗利益円</dt><dd class="result-value">{% if result %}¥{{ target.gross_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>粗利率</dt><dd class="result-value">{% if result %}{{ target.gross_margin|percent }}{% else %}-{% endif %}</dd></div>
+        <div><dt>還付込み利益額円</dt><dd class="result-value">{% if result %}¥{{ target.refund_profit_yen|floatformat:0 }}{% else %}-{% endif %}</dd></div>
+        <div><dt>還付込み利益率</dt><dd class="result-value">{% if result %}{{ target.refund_margin|percent }}{% else %}-{% endif %}</dd></div>
+      </dl></article>{% endwith %}
+    </div>
+    <div class="result-meta"><span>使用為替 <strong class="result-value">{% if result %}{{ result.used_exchange_rate|floatformat:4 }} 円/USD{% else %}-{% endif %}</strong></span><span>為替取得元 <strong class="result-value">{% if result %}{{ result.exchange_source }}{% else %}-{% endif %}</strong></span></div>
+  </section>
 </form>
-{% if result %}<section class="results" aria-live="polite"><h2>計算結果</h2><div class="result-grid">
-  <article><span>売上円</span><strong>¥{{ result.revenue_yen|floatformat:0 }}</strong></article>
-  <article><span>手数料対象円</span><strong>¥{{ result.fee_base_yen|floatformat:0 }}</strong></article>
-  <article><span>eBay FVF円</span><strong>¥{{ result.ebay_fvf_yen|floatformat:0 }}</strong></article>
-  <article><span>海外手数料円</span><strong>¥{{ result.international_fee_yen|floatformat:0 }}</strong></article>
-  <article><span>広告費円</span><strong>¥{{ result.ad_cost_yen|floatformat:0 }}</strong></article>
-  <article><span>CPASS送料見積円</span><strong>¥{{ result.cpass_shipping_yen|floatformat:0 }}</strong></article>
-  <article class="featured"><span>粗利円</span><strong>¥{{ result.gross_profit_yen|floatformat:0 }}</strong></article>
-  <article><span>消費税還付見込み円</span><strong>¥{{ result.tax_refund_yen|floatformat:0 }}</strong></article>
-  <article class="featured"><span>還付込み利益円</span><strong>¥{{ result.profit_with_refund_yen|floatformat:0 }}</strong></article>
-  <article><span>粗利率</span><strong>{{ result.gross_margin|floatformat:2 }}%</strong></article>
-  <article class="featured accent"><span>還付込み利益率</span><strong>{{ result.margin_with_refund|floatformat:2 }}%</strong></article>
-</div></section>{% endif %}{% endblock %}
+<script>
+document.getElementById('clear-inputs').addEventListener('click', function () {
+  const values = {domestic_min_yen:'', target_margin_1:'5', target_margin_2:'10', ad_rate:'2', manual_exchange_rate:'', international_fee_rate:'1.35', sales_tax_rate:'8', package_shipping_yen:'3500', ebay_fvf_rate:'13.25'};
+  Object.entries(values).forEach(([name, value]) => { document.querySelector(`[name="${name}"]`).value = value; });
+  document.querySelectorAll('.result-value').forEach(node => { node.textContent = '-'; });
+  document.querySelectorAll('.error, .errors').forEach(node => { node.hidden = true; });
+});
+</script>
+{% endblock %}
