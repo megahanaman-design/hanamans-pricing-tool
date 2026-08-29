@@ -10,6 +10,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from exchange_rate import get_usd_jpy_rate
+from pricing_core import Settings, calculate_summary
 from . import ebay
 from .forms import SimpleCalculatorForm
 from .models import EbayConnection, EbayOrderLine, MonthlyExchangeRate
@@ -26,7 +27,24 @@ def privacy(request):
 
 def simple_calculator(request):
     form = SimpleCalculatorForm(request.POST or None)
-    result = calculate_profit(**form.cleaned_data) if request.method == "POST" and form.is_valid() else None
+    result = None
+    if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        fx_info = get_usd_jpy_rate()
+        if data["manual_exchange_rate"] is not None:
+            fx_info["manual_override"] = float(data["manual_exchange_rate"])
+            fx_info["source"] = "手動上書き"
+        settings = Settings(
+            target_margin_1=float(data["target_margin_1"]) / 100,
+            target_margin_2=float(data["target_margin_2"]) / 100,
+            target_margin=float(data["target_margin_2"]) / 100,
+            ad_rate=float(data["ad_rate"]) / 100,
+            international_fee_rate=float(data["international_fee_rate"]) / 100,
+            sales_tax_rate=float(data["sales_tax_rate"]) / 100,
+            package_shipping_yen=float(data["package_shipping_yen"]),
+            ebay_fvf_rate=float(data["ebay_fvf_rate"]) / 100,
+        )
+        result = calculate_summary(float(data["domestic_min_yen"]), settings, fx_info)
     return render(request, "profit_web/simple_calculator.html", {"form": form, "result": result})
 
 
