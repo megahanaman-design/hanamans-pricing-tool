@@ -20,7 +20,7 @@ class SimpleCalculatorViewTests(TestCase):
         response = self.client.post(reverse("profit_web:simple"), {
             "domestic_min_yen": 10000, "target_margin_1": 5, "target_margin_2": 10,
             "ad_rate": 2, "manual_exchange_rate": "", "international_fee_rate": 1.35,
-            "sales_tax_rate": 8, "package_shipping_yen": 3500, "ebay_fvf_rate": 13.25,
+            "sales_tax_rate": 8, "package_shipping_yen": 3500, "ebay_fvf_rate": 12.35,
         })
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(response.context["result"])
