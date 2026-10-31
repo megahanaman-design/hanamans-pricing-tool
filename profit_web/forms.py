@@ -12,7 +12,7 @@ class SimpleCalculatorForm(forms.Form):
     international_fee_rate = forms.DecimalField(label="海外手数料率（%）", max_digits=7, decimal_places=3, initial=1.35)
     sales_tax_rate = forms.DecimalField(label="Sales Tax率（%）", max_digits=7, decimal_places=3, initial=8)
     package_shipping_yen = forms.DecimalField(label="荷物発送円", max_digits=14, decimal_places=2, initial=3500, min_value=0)
-    ebay_fvf_rate = forms.DecimalField(label="eBay FVF率（%）", max_digits=7, decimal_places=3, initial=13.25)
+    ebay_fvf_rate = forms.DecimalField(label="eBay FVF率（%）", max_digits=7, decimal_places=3, initial=12.35)
 
     def clean(self):
         cleaned = super().clean()
