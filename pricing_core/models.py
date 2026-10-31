@@ -11,7 +11,10 @@ class Settings:
     exchange_timestamp: str = ""
     sales_tax_rate: float = 0.08
     package_shipping_yen: float = 3000
-    ebay_fvf_rate: float = 0.1325
+    # eBay.com Basic Store, Toys & Hobbies > Collectible Card Games (non-NFT).
+    ebay_fvf_rate: float = 0.1235
+    ebay_fvf_tier_threshold_usd: float = 2500
+    ebay_fvf_over_threshold_rate: float = 0.0235
     ebay_fixed_fee_usd: float = 0.40
     international_fee_rate: float = 0.0135
     ad_rate: float = 0.02
