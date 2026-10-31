@@ -1,0 +1,19 @@
+name: Pricing Core tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pricing-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install calculator and test dependencies
+        run: python -m pip install -e . pytest openpyxl
+      - name: Core calculations, purchase limits, and Excel audit parity
+        run: python -m pytest -q tests/test_pricing_core.py tests/test_purchase_limit.py tests/test_excel_parity.py
