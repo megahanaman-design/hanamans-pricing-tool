@@ -82,7 +82,7 @@ class PricingApp(tk.Tk):
         self.international_fee_rate = tk.StringVar(value="1.35")
         self.sales_tax_rate = tk.StringVar(value="8")
         self.package_shipping_yen = tk.StringVar(value="3000")
-        self.ebay_fvf_rate = tk.StringVar(value="13.25")
+        self.ebay_fvf_rate = tk.StringVar(value="12.35")
 
         basic = ttk.LabelFrame(panel, text="基本入力")
         basic.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 8))
@@ -222,7 +222,7 @@ class PricingApp(tk.Tk):
         self.international_fee_rate.set("1.35")
         self.sales_tax_rate.set("8")
         self.package_shipping_yen.set("3000")
-        self.ebay_fvf_rate.set("13.25")
+        self.ebay_fvf_rate.set("12.35")
         self.manual_fx.set("")
 
     def calculate(self) -> None:
@@ -293,7 +293,7 @@ class PricingApp(tk.Tk):
             "international_fee_rate": self._percent_to_decimal(self.international_fee_rate.get(), 0.0135),
             "sales_tax_rate": self._percent_to_decimal(self.sales_tax_rate.get(), 0.08),
             "package_shipping_yen": self._to_float(self.package_shipping_yen.get(), 3000),
-            "ebay_fvf_rate": self._percent_to_decimal(self.ebay_fvf_rate.get(), 0.1325),
+            "ebay_fvf_rate": self._percent_to_decimal(self.ebay_fvf_rate.get(), 0.1235),
             "manual_exchange_rate": self._to_float(self.manual_fx.get()),
         }
         GUI_SETTINGS.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -314,7 +314,7 @@ class PricingApp(tk.Tk):
         self.international_fee_rate.set("1.35")
         self.sales_tax_rate.set("8")
         self.package_shipping_yen.set("3000")
-        self.ebay_fvf_rate.set("13.25")
+        self.ebay_fvf_rate.set("12.35")
         self.manual_fx.set("")
         for var in self.result_labels.values():
             var.set("-")

@@ -55,7 +55,14 @@ def calculate_metrics_with_buyer_shipping(
     selling_price_usd = product_price_usd + shipping
     sales_yen = selling_price_usd * exchange_rate
     total_sales_yen = sales_yen * (1 + settings.sales_tax_rate)
-    ebay_fvf_yen = total_sales_yen * settings.ebay_fvf_rate + settings.ebay_fixed_fee_usd * exchange_rate
+    # Final value fee is tiered per item on the tax-inclusive selling total.
+    # Keep the fixed per-order charge separate from the percentage component.
+    fvf_threshold_yen = settings.ebay_fvf_tier_threshold_usd * exchange_rate
+    fvf_percentage_yen = (
+        min(total_sales_yen, fvf_threshold_yen) * settings.ebay_fvf_rate
+        + max(total_sales_yen - fvf_threshold_yen, 0) * settings.ebay_fvf_over_threshold_rate
+    )
+    ebay_fvf_yen = fvf_percentage_yen + settings.ebay_fixed_fee_usd * exchange_rate
     international_fee_yen = total_sales_yen * settings.international_fee_rate
     ad_fee_yen = total_sales_yen * settings.ad_rate
     payoneer_fee_yen = (
@@ -65,10 +72,20 @@ def calculate_metrics_with_buyer_shipping(
     shipping_yen = settings.package_shipping_yen + shipping * exchange_rate
     gross_profit_yen = sales_yen - purchase_yen - total_fee_yen - shipping_yen - settings.other_cost_yen
     gross_margin = gross_profit_yen / sales_yen if sales_yen else 0
+    # Preserve the existing refund estimate while applying the effective
+    # tier-weighted FVF rate (excluding the non-percentage fixed order fee).
+    effective_fvf_rate = (
+        fvf_percentage_yen / total_sales_yen if total_sales_yen else settings.ebay_fvf_rate
+    )
     refund_profit_yen = (
         gross_profit_yen
         + (purchase_yen * 0.0909)
-        + (sales_yen * (settings.ebay_fvf_rate + settings.international_fee_rate) * 1.1 * 0.0909)
+        + (
+            sales_yen
+            * (effective_fvf_rate + settings.international_fee_rate)
+            * 1.1
+            * 0.0909
+        )
     )
     refund_margin = refund_profit_yen / sales_yen if sales_yen else 0
     return {

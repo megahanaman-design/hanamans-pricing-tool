@@ -47,7 +47,7 @@ def test_golden_one_purchase_limit_connection():
     result = max_purchase_yen_for_selling_total(117.99, Settings(), 155)
 
     assert result.product_price_usd == 99.99
-    assert result.max_purchase_yen == 8858
+    assert result.max_purchase_yen == 9032
     assert result.gross_profit_at_limit >= 0
     assert result.gross_profit_at_next_yen < 0
 
@@ -60,9 +60,9 @@ def test_product_price_purchase_limit_uses_product_price_not_selling_total():
     assert result.product_price_usd == 117.99
     assert result.duty_shipping_usd == 26.82
     assert result.selling_price_usd == 144.81
-    assert result.max_purchase_yen == 10719
-    assert result.gross_profit_at_limit == pytest.approx(0.929978944161121)
-    assert result.gross_profit_at_next_yen == pytest.approx(-0.07002105583887897)
+    assert result.max_purchase_yen == 10939
+    assert result.gross_profit_at_limit == pytest.approx(0.6825332303205869)
+    assert result.gross_profit_at_next_yen == pytest.approx(-0.3174667696794131)
 
     at_limit = calculate_metrics(117.99, result.max_purchase_yen, settings, 159.31)
     at_next = calculate_metrics(117.99, result.max_purchase_yen + 1, settings, 159.31)
@@ -76,24 +76,24 @@ def test_old_total_cap_and_new_product_price_have_distinct_semantics():
 
     assert old.product_price_usd == 99.99
     assert old.selling_price_usd == 117.99
-    assert old.max_purchase_yen == 8858
+    assert old.max_purchase_yen == 9032
     assert new.product_price_usd == 117.99
     assert new.selling_price_usd == 144.81
-    assert new.max_purchase_yen == 10835
+    assert new.max_purchase_yen == 11049
 
 
 def test_gui_candidate_break_even_remains_consistent_with_product_price_api():
     settings = Settings(package_shipping_yen=3500)
-    below = calculate_metrics(115.99, 10500, settings, 159.31)
-    at_break_even = calculate_metrics(116.99, 10500, settings, 159.31)
+    below = calculate_metrics(113.99, 10500, settings, 159.31)
+    at_break_even = calculate_metrics(114.99, 10500, settings, 159.31)
     summary = calculate_summary(10500, settings, {"rate": 159.31, "source": "test"})
 
     assert below["gross_profit_yen"] < 0
     assert at_break_even["gross_profit_yen"] >= 0
-    assert summary.gross_break_even.product_price_usd == 116.99
+    assert summary.gross_break_even.product_price_usd == 114.99
     assert summary.gross_break_even.duty_shipping_usd == 26.82
-    assert summary.gross_break_even.selling_price_usd == 143.81
-    # Existing GUI ceil formatting displays these values as $117 / $27 / $144.
+    assert summary.gross_break_even.selling_price_usd == 141.81
+    # Existing GUI ceil formatting displays these values as $115 / $27 / $142.
     assert tuple(
         math.ceil(value)
         for value in (
@@ -101,7 +101,7 @@ def test_gui_candidate_break_even_remains_consistent_with_product_price_api():
             summary.gross_break_even.duty_shipping_usd,
             summary.gross_break_even.selling_price_usd,
         )
-    ) == (117, 27, 144)
+    ) == (115, 27, 142)
 
 
 @pytest.mark.parametrize("product_price", [float("nan"), float("inf"), -0.01])

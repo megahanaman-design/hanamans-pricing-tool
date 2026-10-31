@@ -118,6 +118,15 @@ def _build_settings_audit(ws, settings: Settings, fx_info: dict) -> None:
     for row in (24, 25, 26):
         ws.cell(row, 2).number_format = "#,##0"
 
+    # Store-category FVF tier inputs are audited separately so existing
+    # Simulator cell positions and workbook consumers remain unchanged.
+    ws["A29"] = "FVF段階境界USD"
+    ws["B29"] = settings.ebay_fvf_tier_threshold_usd
+    ws["B29"].number_format = "$#,##0.00"
+    ws["A30"] = "FVF境界超過料率"
+    ws["B30"] = settings.ebay_fvf_over_threshold_rate
+    ws["B30"].number_format = "0.00%"
+
 
 def _build_fee_breakdown(ws) -> None:
     _section_title(ws, "D1", "手数料内訳")
@@ -197,7 +206,15 @@ def _build_candidate_table(ws) -> None:
         ws.cell(row, 6, f"=Simulator!$B$7+B{row}*Simulator!$B$5")
         ws.cell(row, 7, f"=D{row}-Simulator!$B$3-E{row}-F{row}-Simulator!$B$13")
         ws.cell(row, 8, f"=IFERROR(G{row}/D{row},0)")
-        ws.cell(row, 9, f"=G{row}+(Simulator!$B$3*0.0909)+(D{row}*(Simulator!$B$8+Simulator!$B$10)*1.1*0.0909)")
+        fee_base = f"(D{row}*(1+Simulator!$B$6))"
+        fvf_variable = _tiered_fvf_variable_formula(
+            fee_base, "Simulator!$B$8", "Simulator!$B$5"
+        )
+        ws.cell(
+            row, 9,
+            f"=G{row}+(Simulator!$B$3*0.0909)"
+            f"+(D{row}*({fvf_variable}/{fee_base}+Simulator!$B$10)*1.1*0.0909)",
+        )
         ws.cell(row, 10, f"=IFERROR(I{row}/D{row},0)")
         ws.cell(row, 11, f'=IF(G{row}>=0,A{row},"")')
         ws.cell(row, 12, f'=IF(I{row}>=0,A{row},"")')
@@ -225,9 +242,20 @@ def _build_candidate_table(ws) -> None:
     )
 
 
+def _tiered_fvf_variable_formula(total_sales: str, base_rate: str, exchange_rate: str) -> str:
+    cap = f"(Settings!$B$29*{exchange_rate})"
+    return (
+        f"(MIN({total_sales},{cap})*{base_rate}"
+        f"+MAX({total_sales}-{cap},0)*Settings!$B$30)"
+    )
+
+
 def _candidate_fee_formula(row: int) -> str:
     total_sales = f"(D{row}*(1+Simulator!$B$6))"
-    fvf = f"({total_sales}*Simulator!$B$8+Simulator!$B$9*Simulator!$B$5)"
+    variable_fvf = _tiered_fvf_variable_formula(
+        total_sales, "Simulator!$B$8", "Simulator!$B$5"
+    )
+    fvf = f"({variable_fvf}+Simulator!$B$9*Simulator!$B$5)"
     international = f"({total_sales}*Simulator!$B$10)"
     ad = f"({total_sales}*Simulator!$B$11)"
     payoneer = f"((D{row}-{fvf}-{international}-{ad})*Simulator!$B$12)"
@@ -278,7 +306,10 @@ def _build_simulator_sheet(ws) -> None:
         ("販売価格USD", '=IF($B$4="","",$B$4+$B$20)'),
         ("総販売額円", '=IF($B$4="","",$B$21*$B$5*(1+$B$6))'),
         ("売上円換算", '=IF($B$4="","",$B$21*$B$5)'),
-        ("eBay FVF円", '=IF($B$4="","",$B$22*$B$8+$B$9*$B$5)'),
+        (
+            "eBay FVF円",
+            f'=IF($B$4="","",{_tiered_fvf_variable_formula("$B$22", "$B$8", "$B$5")}+$B$9*$B$5)',
+        ),
         ("eBay固定手数料円", '=IF($B$4="","",$B$9*$B$5)'),
         ("海外手数料円", '=IF($B$4="","",$B$22*$B$10)'),
         ("広告費円", '=IF($B$4="","",$B$22*$B$11)'),
@@ -287,7 +318,11 @@ def _build_simulator_sheet(ws) -> None:
         ("送料合計円", '=IF($B$4="","",$B$7+$B$20*$B$5)'),
         ("粗利額円", '=IF($B$4="","",$B$23-$B$3-$B$29-$B$30-$B$13)'),
         ("粗利率", '=IF($B$4="","",IFERROR($B$31/$B$23,0))'),
-        ("還付込み利益額円", '=IF($B$4="","",$B$31+($B$3*0.0909)+($B$23*($B$8+$B$10)*1.1*0.0909))'),
+        (
+            "還付込み利益額円",
+            '=IF($B$4="","",$B$31+($B$3*0.0909)'
+            '+($B$23*((($B$24-$B$25)/$B$22)+$B$10)*1.1*0.0909))',
+        ),
         ("還付込み利益率", '=IF($B$4="","",IFERROR($B$33/$B$23,0))'),
         ("粗利ベース損益分岐商品価格USD", '=IF(COUNT(Settings!$K$88:$K$3088)=0,"該当なし",MIN(Settings!$K$88:$K$3088))'),
         ("還付込み損益分岐商品価格USD", '=IF(COUNT(Settings!$L$88:$L$3088)=0,"該当なし",MIN(Settings!$L$88:$L$3088))'),
@@ -330,7 +365,11 @@ def _build_gui_audit_area(ws) -> None:
         ("送料合計円", '=IF(B45="","",$B$7+B46*$B$5)', '=IF(C45="","",$B$7+C46*$B$5)'),
         ("粗利額円", '=IF(B45="","",B48-$B$3-B50-B51-$B$13)', '=IF(C45="","",C48-$B$3-C50-C51-$B$13)'),
         ("粗利率", '=IF(B45="","",IFERROR(B52/B48,0))', '=IF(C45="","",IFERROR(C52/C48,0))'),
-        ("還付込み利益額円", '=IF(B45="","",B52+($B$3*0.0909)+(B48*($B$8+$B$10)*1.1*0.0909))', '=IF(C45="","",C52+($B$3*0.0909)+(C48*($B$8+$B$10)*1.1*0.0909))'),
+        (
+            "還付込み利益額円",
+            _gui_audit_refund_formula("B"),
+            _gui_audit_refund_formula("C"),
+        ),
         ("還付込み利益率", '=IF(B45="","",IFERROR(B54/B48,0))', '=IF(C45="","",IFERROR(C54/C48,0))'),
     ]
     for row_index, (label, formula_1, formula_2) in enumerate(rows, start=45):
@@ -342,11 +381,20 @@ def _build_gui_audit_area(ws) -> None:
 def _gui_audit_fee_formula(column: str) -> str:
     total_sales = f"{column}49"
     sales = f"{column}48"
-    fvf = f"({total_sales}*$B$8+$B$9*$B$5)"
+    variable_fvf = _tiered_fvf_variable_formula(total_sales, "$B$8", "$B$5")
+    fvf = f"({variable_fvf}+$B$9*$B$5)"
     international = f"({total_sales}*$B$10)"
     ad = f"({total_sales}*$B$11)"
     payoneer = f"(({sales}-{fvf}-{international}-{ad})*$B$12)"
     return f'=IF({column}45="","",{fvf}+{international}+{ad}+{payoneer})'
+
+
+def _gui_audit_refund_formula(column: str) -> str:
+    variable_fvf = _tiered_fvf_variable_formula(f"{column}49", "$B$8", "$B$5")
+    return (
+        f'=IF({column}45="","",{column}52+($B$3*0.0909)'
+        f'+({column}48*({variable_fvf}/{column}49+$B$10)*1.1*0.0909))'
+    )
 
 
 def _shipping_table_rows() -> list[list[object]]:
