@@ -19,16 +19,16 @@ from pricing_core import (
             "international_fee_yen": 266.645601, "ad_fee_yen": 395.03052,
             "payoneer_fee_yen": 302.50920836, "total_fee_yen": 3465.49879036,
             "shipping_yen": 5790.0, "gross_profit_yen": -967.04879036,
-            "gross_margin": -0.05287756974265176,
+            "gross_margin": -0.05022195482384178,
             "refund_profit_yen": 192.47791946350037,
-            "refund_margin": 0.010524561647569933,
+            "refund_margin": 0.009995997587964938,
         }),
         (2499.99, 100000, {
             "duty_shipping_usd": 449.82, "selling_price_usd": 2949.81,
             "gross_profit_yen": 209734.71188316002,
-            "gross_margin": 0.45871672190403523,
+            "gross_margin": 0.8474614688220772,
             "refund_profit_yen": 224103.8629132232,
-            "refund_margin": 0.490143898635403,
+            "refund_margin": 0.9055219669071409,
         }),
         (2500.00, 100000, {
             "duty_shipping_usd": 0, "selling_price_usd": 2500.00,
@@ -50,7 +50,9 @@ def test_fixed_buyer_shipping_uses_exact_policy_charge_for_revenue_and_cost():
     assert actual["duty_shipping_usd"] == 117
     assert actual["selling_price_usd"] == 717
     assert actual["shipping_yen"] == pytest.approx(3500 + 117 * 159.32)
-    assert actual["gross_margin"] == pytest.approx(0.019985831381418503)
+    assert actual["gross_margin"] == pytest.approx(
+        actual["gross_profit_yen"] / actual["total_cost_yen"]
+    )
 
 
 def test_fixed_buyer_shipping_rejects_negative_or_nonfinite_values():
@@ -109,3 +111,43 @@ def test_custom_first_tier_rate_and_refund_are_consistent():
         + 2501 * 155 * ((2500 * 0.10 + 0.0235) / 2501 + 0.0135) * 1.1 * 0.0909
     )
     assert metrics["refund_profit_yen"] == pytest.approx(expected_refund)
+
+
+
+def test_gross_margin_is_total_cost_markup_and_zero_is_break_even():
+    settings = Settings()
+    baseline = calculate_metrics_with_buyer_shipping(200, 25, 0, settings, 155)
+    # At the break-even purchase cost, ALL fees, delivery and expenses have been paid.
+    purchase_at_break_even = baseline["gross_profit_yen"]
+    at_break_even = calculate_metrics_with_buyer_shipping(
+        200, 25, purchase_at_break_even, settings, 155
+    )
+    assert at_break_even["gross_profit_yen"] == pytest.approx(0, abs=1e-7)
+    assert at_break_even["gross_margin"] == pytest.approx(0, abs=1e-12)
+    assert at_break_even["sales_yen"] == pytest.approx(at_break_even["total_cost_yen"])
+    assert at_break_even["total_cost_yen"] == pytest.approx(
+        purchase_at_break_even
+        + at_break_even["shipping_yen"]
+        + at_break_even["total_fee_yen"]
+    )
+
+
+def test_three_percent_uses_cost_denominator_excluding_tax_refund():
+    settings = Settings()
+    baseline = calculate_metrics_with_buyer_shipping(200, 25, 0, settings, 155)
+    non_purchase_cost = baseline["total_cost_yen"]
+    target_cost = baseline["sales_yen"] / 1.03
+    purchase_for_three_percent = target_cost - non_purchase_cost
+    assert purchase_for_three_percent > 0
+    result = calculate_metrics_with_buyer_shipping(
+        200, 25, purchase_for_three_percent, settings, 155
+    )
+    assert result["gross_margin"] == pytest.approx(0.03, abs=1e-12)
+    assert result["gross_profit_yen"] == pytest.approx(0.03 * result["total_cost_yen"])
+    assert result["refund_profit_yen"] > result["gross_profit_yen"]
+    # Purchasing a slightly more expensive item can turn this price into a loss.
+    too_expensive = calculate_metrics_with_buyer_shipping(
+        200, 25, baseline["sales_yen"] - non_purchase_cost + 1, settings, 155
+    )
+    assert too_expensive["gross_profit_yen"] < 0
+    assert too_expensive["gross_margin"] < 0
