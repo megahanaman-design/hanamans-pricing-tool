@@ -70,8 +70,11 @@ def calculate_metrics_with_buyer_shipping(
     ) * settings.payoneer_fee_rate
     total_fee_yen = ebay_fvf_yen + international_fee_yen + ad_fee_yen + payoneer_fee_yen
     shipping_yen = settings.package_shipping_yen + shipping * exchange_rate
-    gross_profit_yen = sales_yen - purchase_yen - total_fee_yen - shipping_yen - settings.other_cost_yen
-    gross_margin = gross_profit_yen / sales_yen if sales_yen else 0
+    total_cost_yen = purchase_yen + total_fee_yen + shipping_yen + settings.other_cost_yen
+    gross_profit_yen = sales_yen - total_cost_yen
+    # Gross margin is the return on ALL costs, not a percentage of revenue.
+    # Tax refunds are excluded from this target/break-even calculation.
+    gross_margin = gross_profit_yen / total_cost_yen if total_cost_yen > 0 else 0
     # Preserve the existing refund estimate while applying the effective
     # tier-weighted FVF rate (excluding the non-percentage fixed order fee).
     effective_fvf_rate = (
@@ -87,7 +90,7 @@ def calculate_metrics_with_buyer_shipping(
             * 0.0909
         )
     )
-    refund_margin = refund_profit_yen / sales_yen if sales_yen else 0
+    refund_margin = refund_profit_yen / total_cost_yen if total_cost_yen > 0 else 0
     return {
         "duty_shipping_usd": shipping,
         "selling_price_usd": selling_price_usd,
@@ -99,6 +102,7 @@ def calculate_metrics_with_buyer_shipping(
         "payoneer_fee_yen": payoneer_fee_yen,
         "total_fee_yen": total_fee_yen,
         "shipping_yen": shipping_yen,
+        "total_cost_yen": total_cost_yen,
         "gross_profit_yen": gross_profit_yen,
         "gross_margin": gross_margin,
         "refund_profit_yen": refund_profit_yen,
