@@ -19,3 +19,30 @@ jobs:
         run: python -m pytest -q tests/test_pricing_core.py tests/test_purchase_limit.py tests/test_excel_parity.py
       - name: Pricing Tool web calculator and monthly estimator routes
         run: python manage.py test profit_web.tests.test_simple_calculator profit_web.tests.test_monthly_shipping profit_web.tests.test_sku_master_monthly_bridge profit_web.tests.test_sku_master_http_contract
+
+  isolated-postgres-http:
+    runs-on: ubuntu-24.04
+    env:
+      DATABASE_URL: postgresql://runner@127.0.0.1:5432/postgres
+      # Disposable GitHub runner only; no Neon production access.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Start ephemeral PostgreSQL 16
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres createuser --superuser runner
+          sudo sed -i '1ihost all runner 127.0.0.1/32 trust' /etc/postgresql/16/main/pg_hba.conf
+          sudo systemctl reload postgresql.service
+          pg_isready -h 127.0.0.1 -p 5432
+          psql "$DATABASE_URL" -Atc 'SHOW server_version_num'
+      - name: Install pricing tool test dependencies
+        run: python -m pip install -e . pytest openpyxl
+      - name: Verify PostgreSQL migrations and Django system checks
+        run: |
+          python manage.py migrate --noinput
+          python manage.py check
+      - name: Real localhost HTTP monthly API tests on isolated PostgreSQL
+        run: python manage.py test profit_web.tests.test_sku_master_http_contract profit_web.tests.test_sku_master_monthly_bridge --verbosity 1
