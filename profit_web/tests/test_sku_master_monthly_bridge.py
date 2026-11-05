@@ -90,3 +90,30 @@ class SkuMasterReadOnlyBridgeTests(TestCase):
                 HTTP_AUTHORIZATION="Bearer " + self.token,
             )
         self.assertEqual(response.status_code, 400)
+
+    def test_tokyo_month_boundary_is_consistent_with_original_monthly_view(self):
+        # 2026-10-31 15:15 UTC is already November 1 in Tokyo.
+        self.line.sold_at = datetime(2026, 10, 31, 15, 15, tzinfo=ZoneInfo("UTC"))
+        self.line.save(update_fields=["sold_at"])
+        with patch.dict("os.environ", {"SKU_MASTER_MONTHLY_READ_TOKEN": self.token}):
+            response = self.get(self.token)
+            october = self.client.get(
+                reverse("profit_web:sku_master_monthly_read") + "?month=2026-10",
+                HTTP_AUTHORIZATION="Bearer " + self.token,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["line_count"], 1)
+        self.assertTrue(response.json()["lines"][0]["sold_at"].startswith("2026-11-01T00:15"))
+        self.assertEqual(october.json()["line_count"], 0)
+
+    def test_missing_exchange_rate_never_creates_financial_data(self):
+        MonthlyExchangeRate.objects.all().delete()
+        with patch.dict("os.environ", {"SKU_MASTER_MONTHLY_READ_TOKEN": self.token}):
+            response = self.get(self.token)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsNone(data["exchange_rate"])
+        self.assertIsNone(data["lines"][0]["profit"])
+        self.assertEqual(data["included"], 0)
+        self.assertEqual(MonthlyExchangeRate.objects.count(), 0)
+        self.assertEqual(EbayOrderLine.objects.count(), 1)
