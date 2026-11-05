@@ -121,7 +121,7 @@ def sku_master_monthly_read(request):
             "ebay_item_id": line.legacy_item_id,
             "title": line.title,
             "quantity": line.quantity,
-            "sold_at": line.sold_at.isoformat(),
+            "sold_at": timezone.localtime(line.sold_at).isoformat(),
             "item_price": _amount(line.item_price),
             "shipping_received": _amount(line.shipping_amount),
             "sales_tax": _amount(line.sales_tax),
